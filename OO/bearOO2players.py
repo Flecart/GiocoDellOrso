@@ -7,7 +7,31 @@ class Board():
     distances = [[0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6], [1, 0, 2, 1, 1, 2, 3, 2, 2, 3, 3, 3, 4, 4, 3, 4, 5, 5, 4, 6, 5], [1, 2, 0, 1, 3, 2, 1, 4, 4, 3, 3, 3, 2, 2, 5, 4, 3, 5, 6, 4, 5], [1, 1, 1, 0, 2, 1, 2, 3, 3, 2, 2, 2, 3, 3, 4, 3, 4, 4, 5, 5, 5], [2, 1, 3, 2, 0, 3, 4, 1, 1, 2, 3, 4, 5, 5, 2, 3, 6, 4, 3, 5, 4], [2, 2, 2, 1, 3, 0, 3, 3, 2, 1, 1, 1, 2, 3, 3, 2, 3, 3, 4, 4, 4], [2, 3, 1, 2, 
 4, 3, 0, 5, 5, 4, 3, 2, 1, 1, 6, 3, 2, 4, 5, 3, 4], [3, 2, 4, 3, 1, 3, 5, 0, 1, 2, 3, 4, 5, 6, 1, 3, 5, 3, 2, 4, 3], [3, 2, 4, 3, 1, 2, 5, 1, 0, 1, 2, 3, 4, 5, 1, 2, 5, 3, 2, 4, 3], [3, 3, 3, 2, 2, 1, 4, 2, 1, 0, 1, 2, 3, 4, 2, 1, 4, 2, 3, 3, 3], [3, 3, 3, 2, 3, 1, 3, 3, 2, 1, 0, 1, 2, 3, 3, 1, 3, 2, 3, 3, 3], [3, 3, 3, 2, 4, 1, 2, 4, 3, 2, 1, 0, 1, 2, 4, 1, 2, 2, 3, 3, 3], [3, 4, 2, 3, 5, 2, 1, 5, 4, 3, 2, 1, 0, 1, 5, 2, 1, 3, 4, 2, 3], [3, 4, 2, 3, 5, 3, 1, 6, 5, 4, 3, 2, 1, 0, 5, 3, 1, 3, 4, 2, 3], [4, 3, 5, 4, 2, 3, 6, 1, 1, 2, 3, 4, 5, 5, 0, 3, 4, 2, 1, 3, 2], [4, 4, 4, 3, 3, 2, 3, 3, 2, 1, 1, 
 1, 2, 3, 3, 0, 3, 1, 2, 2, 2], [4, 5, 3, 4, 6, 3, 2, 5, 5, 4, 3, 2, 1, 1, 4, 3, 0, 2, 3, 1, 2], [5, 5, 5, 4, 4, 3, 4, 3, 3, 2, 2, 2, 3, 3, 2, 1, 2, 0, 1, 1, 1], [5, 4, 6, 5, 3, 4, 5, 2, 2, 3, 3, 3, 4, 4, 1, 2, 3, 1, 0, 2, 1], [5, 6, 4, 5, 5, 4, 3, 4, 4, 3, 3, 3, 2, 2, 3, 2, 1, 1, 2, 0, 1], [6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 1, 1, 1, 0]]
-        
+
+    
+    #Adjacent locations
+    adjacent = [[1,2,3], #0
+            [0,3,4],
+            [0,3,6], #2
+            [0,1,2,5],
+            [1,7,8], #4
+            [3,9,10,11],
+            [2,12,13], #6
+            [4,8,14],
+            [7,4,14,9], #8
+            [8, 10,5,15],
+            [5,9,11,15],#10
+            [5,10,15,12],
+            [11,6,16,13],#12
+            [6,12,16],
+            [7,8,18],#14
+            [9,10,11,17],
+            [12,13,19], #16
+            [15,18,19,20],
+            [14,17,20], #18
+            [16, 17, 20],
+            [18, 17, 19]]
+
     #init
     def __init__(self):
         self.__cells = ['_'] * 21
@@ -123,41 +147,26 @@ class Board():
         return self.__cells[position]
 
     def possible_moves(self, position):
-        #Adjacent locations
-        adjacent = [[1,2,3], #0
-                [0,3,4],
-                [0,3,6], #2
-                [0,1,2,5],
-                [1,7,8], #4
-                [3,9,10,11],
-                [2,12,13], #6
-                [4,8,14],
-                [7,4,14,9], #8
-                [8, 10,5,15],
-                [5,9,11,15],#10
-                [5,10,15,12],
-                [11,6,16,13],#12
-                [6,12,16],
-                [7,8,18],#14
-                [9,10,11,17],
-                [12,13,19], #16
-                [15,18,19,20],
-                [14,17,20], #18
-                [16, 17, 20],
-                [18, 17, 19]]
         moves = []
         #Check free positions
-        for x in adjacent[position]:
+        for x in Board.adjacent[position]:
             if self.__cells[x] == '_':
                 moves.append(x)
         return moves
 
+    @staticmethod
+    def get_adiacent(position):
+        return Board.adjacent[position]
 
 ##########################################################################################################
 # The AI
 ##########################################################################################################
-PLY_DEPTH_LIMIT = 10
+PLY_DEPTH_LIMIT = 8
 INFINITY = 1000000
+DEFAULT_DIST = [INFINITY] * 21
+DEFAULT_VISITED = [False] * 21
+from queue import Queue 
+
 def evaluate_ending(game: Board):
     state_value = 0
     if game.get_winner() == HUNTER_WINS:
@@ -168,10 +177,30 @@ def evaluate_ending(game: Board):
     game.set_winner(None)
     return state_value
 
-def get_heuristic_value(bear_position: int, hunter_positions: list[int]):
+def get_heuristic_value(bear_position: int, hunter_positions: list[int], n: int = 3):
+    """ Numero di nodi raggiungibili in n mosse"""
     heuristic = 0
-    for position in hunter_positions:
-        heuristic += Board.get_distance(bear_position, position) ** 2
+
+    visited = DEFAULT_VISITED.copy() # 21 è il numero di posizioni
+    dist = DEFAULT_DIST.copy()
+    # bfs to get reachable nodes 
+    queue = Queue()
+    queue.put(bear_position)
+    visited[bear_position] = True
+    dist[bear_position] = 0
+    while not queue.empty():
+        current = queue.get()
+        heuristic += 1
+        if dist[current] == 2:
+            continue 
+
+        for x in Board.get_adiacent(current):
+            if not visited[x]:
+                queue.put(x)
+                dist[x] = dist[current] + 1
+                visited[x] = True
+
+
     return heuristic
 
 def sort_with_heuristic(moves: list[int]):
@@ -191,10 +220,9 @@ def min_player(alpha: int, beta: int, depth: int = 0):
         return -get_heuristic_value(game.get_bear_position(), game.get_hunter_positions()) # vuol dire che l'orso sta ancora vincendo!
     
     moves = game.possible_moves(game.get_bear_position())
-    moves = sort_with_heuristic(moves)
     best_value = INFINITY
     last_bear_pos = game.get_bear_position()
-    for move, _ in moves:
+    for move in moves:
         game.set_is_hunter_turn(False)
         game.move_player(last_bear_pos, move)
         value = max_player(alpha, beta, depth + 1)
