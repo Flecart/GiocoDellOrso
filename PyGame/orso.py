@@ -7,6 +7,7 @@ ovvero con utilizzo di Sprites e gruppi di collisioni
 e maggiore orientamento OOP
 '''
 
+from multiprocessing.sharedctypes import Value
 import pygame
 import time
 import sys
@@ -24,6 +25,30 @@ class BearGame:
     1-8-9 means hunters; 
     2 means bear;
     '''
+
+    '''Adjacent locations, index is position'''
+    adjacent = [[1,2,3], #0
+            [0,3,4],
+            [0,3,6], #2
+            [0,1,2,5],
+            [1,7,8], #4
+            [3,9,10,11],
+            [2,12,13], #6
+            [4,8,14],
+            [7,4,14,9], #8
+            [8, 10,5,15],
+            [5,9,11,15],#10
+            [5,10,15,12],
+            [11,6,16,13],#12
+            [6,12,16],
+            [7,8,18],#14
+            [9,10,11,17],
+            [12,13,19], #16
+            [15,18,19,20],
+            [14,17,20], #18
+            [16, 17, 20],
+            [18, 17, 19]]
+
     def __init__(self, max_bear_moves: int, hunter_starts: bool):
         # Start settings
         self.reset(max_bear_moves, hunter_starts)
@@ -37,6 +62,7 @@ class BearGame:
         # From external configuration
         self._is_hunter_turn = hunter_starts        
         self._max_bear_moves = max_bear_moves 
+        self._winner = None 
 
     def get_bear_moves(self) -> int:
         '''
@@ -72,16 +98,23 @@ class BearGame:
 
     def get_winner_display(self) -> str:
         '''Returns the winner in a string type for display purposes'''
-        if not(self.get_possible_moves(self._bear_position)):
+        if self._winner == HUNTER_WINS:
             return 'Hanno vinto i cacciatori!'
-        if (self._bear_moves >= self._max_bear_moves):
+        if self._winner == BEAR_WINS:
             return "Ha vinto l'orso, congratulazioni"
 
     def game_over(self) -> bool:
-        if ( ( not(self.get_possible_moves(self._bear_position)) ) or (self._bear_moves >= self._max_bear_moves) ):
+        if not self.get_possible_moves(self._bear_position):
+            self._winner = HUNTER_WINS
+            return True
+        elif (self._bear_moves > self._max_bear_moves):
+            self._winner = BEAR_WINS
             return True
         else:
             return False
+
+    def get_winner(self) -> None | int:
+        return self._winner
 
     def is_hunter(self, selection:str) -> bool:
         return selection in ['1','8','9']
@@ -89,9 +122,23 @@ class BearGame:
     def is_hunter_turn(self) -> bool:
         return self._is_hunter_turn
 
+    def move_hunter(self, start_position: int, final_position: int):
+        '''
+        Move hunter to final position
+        '''
+        if (final_position in self.get_possible_moves(start_position)):
+            selected_hunter = self._board[self._hunter_starting_pos]
+            self._board[start_position] = '_'
+            self._board[final_position] = selected_hunter
+
+            self._hunter_starting_pos = -1
+            self._is_hunter_turn = not self._is_hunter_turn
+        else: # Go back to picking stage
+            self._hunter_starting_pos = -1
+            raise ValueError("Posizione non valida")
+
     def manage_hunter_selection(self, sel:int) -> str:
         '''Input selection from user; return user message to display'''
-        selected_hunter = ''
         # Pick up pawn (starting pos -1)
         if self._hunter_starting_pos == -1:
             if (not(self.is_hunter(self._board[sel]))):
@@ -100,30 +147,142 @@ class BearGame:
                 self._hunter_starting_pos = sel
                 return "Cacciatore, fa' la tua mossa!"
         else: # Finding final position for hunter
-            if sel in self.get_possible_moves(self._hunter_starting_pos):
-                selected_hunter = self._board[self._hunter_starting_pos]
-                self._board[self._hunter_starting_pos] = '_'
-                self._board[sel] = selected_hunter
-                self._hunter_starting_pos = -1
-                self._is_hunter_turn = not(self._is_hunter_turn)
-                return "Orso, scegli la tua mossa!"
-            else: # Go back to picking stage
-                self._hunter_starting_pos = -1
-                return "Posizione non valida!"
+            try:
+                self.move_hunter(self._hunter_starting_pos, sel)
+            except ValueError as e:
+                return str(e)
+            return "Orso, scegli la tua mossa!"
     
-    def manage_bear_selection(self,sel: int) -> str:
-        '''Input selection from user; return user message to display'''
-        if sel in self.get_possible_moves(self._bear_position):
-            # Bear makes the move
+    def move_bear(self, new_position: int) -> None:
+        '''
+        Move bear to a random position
+        '''
+        if new_position in self.get_possible_moves(self._bear_position):
             self._board[self._bear_position] = '_'
-            self._board[sel] = '2'
+            self._board[new_position] = '2'
+            self._bear_position = new_position
             self._bear_moves += 1
-            self._bear_position = sel
-            self._is_hunter_turn = not(self._is_hunter_turn)
-            return "Seleziona uno dei cacciatori!"
+            self._is_hunter_turn = not self._is_hunter_turn
         else:
-            return "Posizione non valida..."
+            raise ValueError("Orso non può muoversi qui!")
+
+    def manage_bear_selection(self, sel: int) -> str:
+        '''Input selection from user; return user message to display'''
+        try: 
+            self.move_bear(sel)
+        except ValueError:
+            return "Orso non può muoversi qui!"
+        return "Seleziona uno dei cacciatori!"
     
+    def manage_ai_bear_selection(self) -> str:
+        '''AI selection for bear'''
+        import time # too check how much time is used
+        curr_time = time.time()
+        # AI move, driver code
+        alpha = -INFINITY
+        beta = INFINITY
+
+        best_move = None 
+        best_value = -INFINITY
+        bear_position = self.get_bear_position()
+        moves = self.get_possible_moves(bear_position)
+        moves = sort_with_heuristic(self, moves)
+        print(f"the moves are : {moves}")
+        for move, _ in moves:
+            self.set_is_hunter_turn(False)
+            self.move_bear(move)
+            value = hunter_max_player(self, alpha, beta)
+            self.set_is_hunter_turn(False)
+            self.move_bear(bear_position) 
+            self.sub_bear_moves(2) 
+
+            if value > best_value:
+                best_value = value
+                best_move = move
+            alpha = max(alpha, best_value)
+            if (alpha >= beta):
+                break
+
+        self.set_is_hunter_turn(False)
+        if best_move != None:
+            self.move_bear(best_move)
+        print("moving the real player")
+        print("time taken to take the move: ", time.time() - curr_time)
+        self.display()
+        return "AI ha mosso!!!"
+
+    def manage_ai_hunter_selection(self) -> str:
+        '''AI selection for hunter'''
+        import time # too check how much time is used
+        curr_time = time.time()
+        # AI move, driver code
+        alpha = -INFINITY
+        beta = INFINITY
+        best_move = None
+        best_value = INFINITY
+        hunter_positions = self.get_hunter_positions()
+
+        for hunter_pos in hunter_positions:
+            moves = self.get_possible_moves(hunter_pos)
+            moves = sort_with_heuristic(self, moves)
+            for move, _ in moves:
+                self.set_is_hunter_turn(True)
+                self._hunter_starting_pos = hunter_pos
+                self.move_hunter(hunter_pos, move)
+                value = bear_min_player(self, alpha, beta)
+                self.set_is_hunter_turn(True)
+                self._hunter_starting_pos = move
+                self.move_hunter(move, hunter_pos)
+
+                if value < best_value:
+                    best_value = value
+                    best_move = [hunter_pos, move]
+
+                alpha = max(alpha, best_value)
+                if alpha >= beta:
+                    break
+
+        self.set_is_hunter_turn(True)
+        if best_move != None:
+            print(f"best move is {best_move=}")
+            self._hunter_starting_pos = best_move[0]
+            self.move_hunter(best_move[0], best_move[1])
+        print("moving the real player hunter!")
+        print("time taken to take the move: ", time.time() - curr_time)
+        self.display()
+        return "AI ha mosso!!!"
+
+
+    def display(self):
+        # print board
+        print("            "+self._board[0]+"            ","             "+"0"+"            ")
+        print("        "+self._board[1]+"       "+self._board[2]+"        ","         "+"1"+"       "+"2"+"        ")
+        print("            "+self._board[3]+"            ","             "+"3"+"            ")
+        print("  "+self._board[4]+"         "+self._board[5]+"         "+self._board[6]+"  ","   "+"4"+"         "+"5"+"         "+"6"+"  ")
+        print(""+self._board[7]+"   "+self._board[8]+"   "+self._board[9]+"   "+self._board[10]+"   "+self._board[11]+"   "+self._board[12]+"   "+self._board[13]+"",
+              " "+"7"+"   "+"8"+"   "+"9"+"  "+"10"+"  "+"11"+"  "+"12"+"  "+"13"+"")
+        print("  "+self._board[14]+"         "+self._board[15]+"         "+self._board[16]+"  ","  "+"14"+"        "+"15"+"        "+"16"+"")
+        print("            "+self._board[17]+"            ","            "+"17"+"            ")
+        print("        "+self._board[18]+"       "+self._board[19]+"        ","        "+"18"+"      "+"19"+"        ")
+        print("            "+self._board[20]+"            ","            "+"20"+"            ")
+
+
+    def set_is_hunter_turn(self, is_hunter_turn: bool) -> None:
+        self._is_hunter_turn = is_hunter_turn
+
+    def get_hunter_positions(self) -> list:
+        return [i for i, x in enumerate(self._board) if x == '1' or x == '8' or x == '9']
+
+    def sub_bear_moves(self, moves: int) -> None:
+        self._bear_moves -= moves
+
+    def set_winner(self, winner: int) -> None:
+        self._winner = winner
+
+    
+    def get_position(self, pos: int) -> str:
+        return self._board[pos]
+
     def is_footprint_and_type(self, sel:int) -> tuple:
         '''
         Return a tuple:
@@ -145,34 +304,15 @@ class BearGame:
                 return (False, None)
 
     def get_possible_moves(self, position: int) -> list:
-        '''Adjacent locations, index is position'''
-        adjacent = [[1,2,3], #0
-                [0,3,4],
-                [0,3,6], #2
-                [0,1,2,5],
-                [1,7,8], #4
-                [3,9,10,11],
-                [2,12,13], #6
-                [4,8,14],
-                [7,4,14,9], #8
-                [8, 10,5,15],
-                [5,9,11,15],#10
-                [5,10,15,12],
-                [11,6,16,13],#12
-                [6,12,16],
-                [7,8,18],#14
-                [9,10,11,17],
-                [12,13,19], #16
-                [15,18,19,20],
-                [14,17,20], #18
-                [16, 17, 20],
-                [18, 17, 19]]
         moves = []
         #Check free positions
-        for x in adjacent[position]:
+        for x in BearGame.adjacent[position]:
             if self._board[x] == '_':
                 moves.append(x)
         return moves
+
+    def get_bear_position(self) -> int:
+        return self._bear_position
 
 # Metodo per ottimizzare il caricamento degli assets
 # "lru_cache" decorator saves recent images into memory for fast retrieval.
@@ -340,9 +480,15 @@ class OrsoPyGame():
                             # Controlla e aggiorna gli spostamenti nella scacchiera
                             # Se click in posizione non corretta, ritorna solo un messaggio
                             if (self.gioco_orso.is_hunter_turn()):
-                                self._msg = self.gioco_orso.manage_hunter_selection(self._selezione)
+                                if IS_AI_HUNTER_PLAYING:
+                                    self._msg = self.gioco_orso.manage_ai_hunter_selection()
+                                else:
+                                    self._msg = self.gioco_orso.manage_hunter_selection(self._selezione)
                             else:
-                                self._msg = self.gioco_orso.manage_bear_selection(self._selezione)                        
+                                if IS_AI_BEAR_PLAYING:
+                                    self._msg = self.gioco_orso.manage_ai_bear_selection()                       
+                                else:
+                                    self._msg = self.gioco_orso.manage_bear_selection(self._selezione)
             self.clock.tick(60)
             # Disegna la scacchiera
             self.screen.blit(self.BOARD_IMG, (0, 0))
@@ -620,6 +766,127 @@ class CasellaGiocoOrso(pygame.sprite.Sprite):
                     self.image = CasellaGiocoOrso.CACCIATORE_TRE_IMG
                 else:
                     self.image = CasellaGiocoOrso.CACCIATORE_TRE_IDLE_IMG
+
+
+
+##########################################################################################################
+# The AI
+##########################################################################################################
+BEAR_WINS = 1
+HUNTER_WINS = 2
+PLY_DEPTH_LIMIT = 7
+INFINITY = 1000000
+IS_AI_BEAR_PLAYING = True
+IS_AI_HUNTER_PLAYING = True
+from queue import Queue 
+
+def evaluate_ending(game: OrsoPyGame):
+    state_value = 0
+    if game.get_winner() == HUNTER_WINS:
+        state_value = INFINITY
+    elif game.get_winner() == BEAR_WINS:
+        state_value = -INFINITY
+
+    game.set_winner(None)
+    return state_value
+
+def get_heuristic_value(game: BearGame, bear_position, n: int = 2):
+    """ Numero di nodi raggiungibili in n mosse"""
+    heuristic = 0
+
+    visited = [False] * 21 # 21 è il numero di posizioni
+    dist = [INFINITY] * 21
+    # bfs to get reachable nodes 
+    queue = Queue()
+    bear_position = bear_position
+    queue.put(bear_position)
+    visited[bear_position] = True
+    dist[bear_position] = 0
+    while not queue.empty():
+        current = queue.get()
+        heuristic += 1
+        if dist[current] == n:
+            continue 
+
+        for x in BearGame.adjacent[current]:
+            if not visited[x] and game.get_position(x) == '_':
+                queue.put(x)
+                dist[x] = dist[current] + 1
+                visited[x] = True
+
+    return heuristic
+
+def sort_with_heuristic(game: BearGame, moves: list[int], deepth: int = 3, reverse: bool = True):
+    moves_with_heuristic = []
+    for move in moves:
+        moves_with_heuristic.append((move, get_heuristic_value(game, move, deepth)))
+    moves_with_heuristic.sort(key=lambda x: x[1], reverse=reverse)
+    return moves_with_heuristic
+
+# bear player
+def bear_min_player(game: BearGame, alpha: int, beta: int, depth: int = 0):
+    if game.game_over(): 
+        return evaluate_ending(game)
+    if depth >= PLY_DEPTH_LIMIT:
+        return -get_heuristic_value(game, game.get_bear_position()) # vuol dire che l'orso sta ancora vincendo!
+    
+    moves = game.get_possible_moves(game.get_bear_position())
+    best_value = INFINITY
+    for move in moves:
+        game.set_is_hunter_turn(False)
+        last_bear_pos = game.get_bear_position()
+        game.move_bear(move)
+        value = hunter_max_player(game, alpha, beta, depth + 1)
+        game.set_is_hunter_turn(False)
+        try: 
+            game.move_bear(last_bear_pos) 
+        except ValueError:
+            import sys 
+            # print move and last bear_pos 
+            game.display() 
+            print(move, last_bear_pos)
+            sys.exit(1) 
+        game.sub_bear_moves(2) 
+
+        if value < best_value:
+            best_value = value
+
+        beta = min(beta, best_value)
+        if alpha >= beta:
+            return best_value
+
+    return best_value
+
+# hunter player
+def hunter_max_player(game: BearGame, alpha: int, beta: int, depth: int = 0):
+    if game.game_over():
+        return evaluate_ending(game)
+    if depth >= PLY_DEPTH_LIMIT:
+        return -get_heuristic_value(game, game.get_bear_position())
+    
+    hunter_positions = game.get_hunter_positions()
+
+    best_value = -INFINITY
+    for hunter_pos in hunter_positions:
+        moves = game.get_possible_moves(hunter_pos)
+        for move in moves:
+            game.set_is_hunter_turn(True)
+            game._hunter_starting_pos = hunter_pos
+            game.move_hunter(hunter_pos, move)
+            # game.display() # debug 
+            value = bear_min_player(game, alpha, beta, depth + 1)
+            game.set_is_hunter_turn(True)
+            game._hunter_starting_pos = move
+            game.move_hunter(move, hunter_pos)
+            # game.display() # debug 
+
+            if value > best_value:
+                best_value = value
+
+            alpha = max(alpha, best_value)
+            if alpha >= beta:
+                return best_value
+    return best_value
 
 
 # Main

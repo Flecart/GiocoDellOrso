@@ -154,6 +154,9 @@ class Board():
                 moves.append(x)
         return moves
 
+    def get_position(self, pos: int):
+        return self.__cells[pos]
+
     @staticmethod
     def get_adiacent(position):
         return Board.adjacent[position]
@@ -177,7 +180,7 @@ def evaluate_ending(game: Board):
     game.set_winner(None)
     return state_value
 
-def get_heuristic_value(bear_position: int, hunter_positions: list[int], n: int = 3):
+def get_heuristic_value(bear_position: int, n: int = 2):
     """ Numero di nodi raggiungibili in n mosse"""
     heuristic = 0
 
@@ -191,7 +194,7 @@ def get_heuristic_value(bear_position: int, hunter_positions: list[int], n: int 
     while not queue.empty():
         current = queue.get()
         heuristic += 1
-        if dist[current] == 2:
+        if dist[current] == n:
             continue 
 
         for x in Board.get_adiacent(current):
@@ -205,9 +208,8 @@ def get_heuristic_value(bear_position: int, hunter_positions: list[int], n: int 
 
 def sort_with_heuristic(moves: list[int]):
     moves_with_heuristic = []
-    hunter_positions = game.get_hunter_positions()
     for move in moves:
-        moves_with_heuristic.append((move, get_heuristic_value(move, hunter_positions)))
+        moves_with_heuristic.append((move, get_heuristic_value(move)))
     moves_with_heuristic.sort(key=lambda x: x[1], reverse=True)
     return moves_with_heuristic
 
@@ -217,7 +219,7 @@ def min_player(alpha: int, beta: int, depth: int = 0):
     if game.has_ended(): 
         return evaluate_ending(game)
     if depth >= PLY_DEPTH_LIMIT:
-        return -get_heuristic_value(game.get_bear_position(), game.get_hunter_positions()) # vuol dire che l'orso sta ancora vincendo!
+        return -get_heuristic_value(game.get_bear_position()) # vuol dire che l'orso sta ancora vincendo!
     
     moves = game.possible_moves(game.get_bear_position())
     best_value = INFINITY
@@ -245,7 +247,7 @@ def max_player(alpha: int, beta: int, depth: int = 0):
     if game.has_ended():
         return evaluate_ending(game)
     if depth >= PLY_DEPTH_LIMIT:
-        return -get_heuristic_value(game.get_bear_position(), game.get_hunter_positions())
+        return -get_heuristic_value(game.get_bear_position())
     
     hunter_positions = game.get_hunter_positions()
     best_value = -INFINITY
