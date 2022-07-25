@@ -226,6 +226,8 @@ class Board():
                 self._bear_player.add_state(self.get_hash())
 
     def train(self, n_times = 100):
+        self._hunter_player.load_policy("hunter_1658769179.policy")
+        self._bear_player.load_policy("bear_1658769179.policy")
         for i in range(n_times):
             try:
                 self.play_game()
