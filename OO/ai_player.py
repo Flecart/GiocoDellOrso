@@ -345,7 +345,7 @@ class Player:
 
 if __name__ == "__main__":
     game = Board()
-    game.play_as_hunter("bear_1658733854.policy")
+    game.play_as_hunter("bear_1.5kk.policy")
     game.print_winner()
 
 

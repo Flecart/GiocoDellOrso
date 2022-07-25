@@ -226,9 +226,6 @@ class Board():
                 self._bear_player.add_state(self.get_hash())
 
     def train(self, n_times = 100):
-        self._bear_player.load_policy("bear_1.5kk.policy")
-        self._hunter_player.load_policy("hunter_1.5kk.policy")
-
         for i in range(n_times):
             try:
                 self.play_game()
@@ -322,4 +319,4 @@ class Player:
 
 if __name__ == "__main__":
     game = Board()
-    game.train(30000) # train the model
+    game.train(1500000) # train the model
