@@ -160,6 +160,9 @@ class Board():
 
     def is_hunter_turn(self):
         return self._is_hunter_turn
+
+    def was_hunter_turn(self): # if the turn before was hunter
+        return not self._is_hunter_turn
     
     def toggle_is_hunter_turn(self):
         self._is_hunter_turn = not self._is_hunter_turn
@@ -215,8 +218,12 @@ class Board():
                 action = self._hunter_player.get_action(self.get_hunter_actions(), self)
             else:
                 action = self._bear_player.get_action(self.get_bear_actions(), self)
-            # debug 
             self.move_player(action[0], action[1])
+
+            if self.was_hunter_turn():
+                self._hunter_player.add_state(self.get_hash())
+            else:
+                self._bear_player.add_state(self.get_hash())
 
     def train(self, n_times = 100):
         self._bear_player.load_policy("bear_1.5kk.policy")
@@ -249,13 +256,14 @@ class Board():
 INFINITY = 1000000
 
 class Player:
-    def __init__(self, name, exp_rate=0.3, alpha=0.2, gamma=0.9):
-        self.name = name
-        self.states = []  # record all positions taken
-        self.alpha = alpha
-        self.exp_rate = exp_rate
-        self.decay_gamma = gamma
-        self.states_value = {}  # state -> value
+    def __init__(self, name: str, exp_rate: float = 0.3, alpha: float = 0.2, 
+      gamma: float = 0.9):
+        self.name: str = name
+        self.states: list[int] = []  # record all positions taken
+        self.alpha: float = alpha
+        self.exp_rate: float = exp_rate
+        self.decay_gamma: float = gamma
+        self.states_value: dict[int, int] = {}  # state -> value
 
     def get_action(self, actions, current_board: Board):
         if np.random.uniform(0, 1) <= self.exp_rate:
@@ -279,11 +287,11 @@ class Player:
         return action
 
     # append a hash state
-    def add_state(self, state):
+    def add_state(self, state: int):
         self.states.append(state)
 
     # at the end of game, backpropagate and update states value
-    def feed_reward(self, reward):
+    def feed_reward(self, reward: float):
         for st in reversed(self.states):
             if self.states_value.get(st) is None:
                 self.states_value[st] = 0
@@ -314,86 +322,4 @@ class Player:
 
 if __name__ == "__main__":
     game = Board()
-    game.train(3000000) # train the model
-
-"""
-is_bear_ai = int(input("Do you want to play against the bear AI? (1/0)"))
-# Game cycle
-while not game.has_ended():
-
-    game.display()
-    # Starting position
-    if game.is_hunter_turn():
-        print("Hunter is playing")
-        try:
-            # Must be integer
-            starting_pos = int(input(" Enter position you want to pick from (0-20): \n").strip())
-
-            # Between 0 and 20
-            if starting_pos < 0 or starting_pos > 20:
-                print("Number out of range")
-                raise ValueError
-            # Belonging to hunter
-            if (game.get_position(starting_pos) != '1'):
-                print("Not your pawn")
-                raise ValueError 
-        except ValueError:
-            print("Please enter only valid fields from board (0-20)")
-            continue
-        
-    else:
-        print("Bear is playing move n. ",game.get_bear_moves())
-        starting_pos = game.get_bear_position()
-
-    # Target position
-    try:
-        target_pos = int(input(" Enter target position you want to go to: \n").strip())
-
-        if target_pos not in game.possible_moves(starting_pos):
-            raise ValueError
-    except ValueError:
-        print("Please enter only valid fields from board (0-20)")
-        continue
-    # Make the move
-    game.move_player(starting_pos, target_pos)
-
-    if not game.is_hunter_turn() and is_bear_ai == 1:
-        import time # too check how much time is used
-        curr_time = time.time()
-        # AI move, driver code
-        alpha = -INFINITY
-        beta = INFINITY
-
-        best_move = None 
-        best_value = -INFINITY
-        bear_position = game.get_bear_position()
-        moves = game.possible_moves(bear_position)
-        moves = sort_with_heuristic(moves)
-        print(f"the moves are : {moves}")
-        for move, _ in moves:
-            game.set_is_hunter_turn(False)
-            game.move_player(bear_position, move)
-            value = max_player(alpha, beta)
-            game.set_is_hunter_turn(False)
-            game.move_player(game.get_bear_position(), bear_position) 
-            game.sub_bear_moves(2) 
-
-            if value > best_value:
-                best_value = value
-                best_move = move
-            alpha = max(alpha, best_value)
-            if (alpha >= beta):
-                break
-
-        game.set_is_hunter_turn(False)
-        if best_move != None:
-            game.move_player(bear_position, best_move)
-        print("moving the real player")
-        print("time taken to take the move: ", time.time() - curr_time)
-        game.display()
-        
-        # print euristics value 
-        print(f"heuristics value is {get_heuristic_value(game.get_bear_position(), game.get_hunter_positions())}")
-
-game.print_winner()
-"""
+    game.train(30000) # train the model
