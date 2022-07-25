@@ -215,13 +215,9 @@ class Board():
                 action = self._hunter_player.get_action(self.get_hunter_actions(), self)
             else:
                 action = self._bear_player.get_action(self.get_bear_actions(), self)
-            # debug 
             self.move_player(action[0], action[1])
 
     def train(self, n_times = 100):
-        self._bear_player.load_policy("bear_1.5kk.policy")
-        self._hunter_player.load_policy("hunter_1.5kk.policy")
-
         for i in range(n_times):
             try:
                 self.play_game()
@@ -243,6 +239,41 @@ class Board():
 
         self._bear_player.save_policy() 
         self._hunter_player.save_policy()
+
+    def human_get_action(self, actions: list[(int, int)]) -> list[(int, int)]:
+        while True:
+            start_position = int(input("Start position: "))
+            end_position = int(input("End position: "))
+
+            if (start_position, end_position) not in actions:
+                print("Invalid move")
+                continue
+            else:
+                break
+        return (start_position, end_position)
+
+    def play_as_hunter(self, file: str) -> None:
+        self._bear_player.load_policy(file)
+
+        while not self.has_ended():
+            self.display()
+            if self.is_hunter_turn():
+                action = self.human_get_action(self.get_hunter_actions())
+            else:
+                action = self._bear_player.get_action(self.get_bear_actions(), self)
+            self.move_player(action[0], action[1])
+
+
+    def play_as_bear(self, file: str) -> None:
+        self.hunter_player.load_policy(file)
+
+        while not self.has_ended():
+            if self.is_hunter_turn():
+                action = self._hunter_player.get_action(self.get_hunter_actions(), self)
+            else:
+                action = self.human_get_action(self.get_hunter_actions())
+            self.move_player(action[0], action[1])
+
 ##########################################################################################################
 # The AI 2
 ##########################################################################################################
@@ -314,7 +345,9 @@ class Player:
 
 if __name__ == "__main__":
     game = Board()
-    game.train(3000000) # train the model
+    game.play_as_hunter("bear_1658733854.policy")
+    game.print_winner()
+
 
 """
 is_bear_ai = int(input("Do you want to play against the bear AI? (1/0)"))
