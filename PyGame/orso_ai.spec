@@ -11,7 +11,6 @@ a = Analysis(
     datas=[('bear_v2.policy', '.'), ('sounds/*', 'sounds/'), ('images/*', 'images/'), ('fonts/*', 'fonts/')],
     hiddenimports=[],
     hookspath=[],
-    hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
