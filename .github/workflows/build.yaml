@@ -2,9 +2,6 @@ name: Create executable with win and linux
 
 on:
   workflow_call:
-    secrets:
-      token:
-        required: true
 
   pull_request:
     branches: [ release ]
