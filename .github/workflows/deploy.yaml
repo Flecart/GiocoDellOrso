@@ -13,18 +13,6 @@ jobs:
     needs: build
 
     steps:
-    - name: Download orso Windows
-      uses: actions/download-artifact@v3
-      with:
-        name: orso_ai.exe
-        path: ~/
-
-    - name: Download orso Linux
-      uses: actions/download-artifact@v3
-      with:
-        name: orso_ai.elf
-        path: ~/
-
     - name: Create github release 
       id: new-release
       uses: actions/create-release@v1 
@@ -40,7 +28,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with: 
         upload_url: ${{ steps.new-release.outputs.upload_url }}
-        asset_path: ~/orso_ai.exe
+        asset_path: PyGame/dist/orso_ai.exe
         asset_name: orso_ai.exe
         asset_content_type: application/x-msdownload
 
@@ -51,6 +39,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with: 
         upload_url: ${{ steps.new-release.outputs.upload_url }}
-        asset_path: ~/orso_ai.elf
+        asset_path: PyGame/dist/orso_ai.elf
         asset_name: orso_ai.elf
         asset_content_type: application/x-executable
