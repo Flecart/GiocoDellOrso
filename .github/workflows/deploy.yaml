@@ -50,7 +50,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with: 
-        upload_url: ${{ steps.new-release.outputs.upload_url }}
+        upload_url: ${{ steps.new-release.outputs.upload_url }}/windows/orso_ai.exe
         asset_path: ${{steps.download-windows.outputs.download-path}}
         asset_name: orso_ai.exe
         asset_content_type: application/x-msdownload
@@ -61,7 +61,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with: 
-        upload_url: ${{ steps.new-release.outputs.upload_url }}
+        upload_url: ${{ steps.new-release.outputs.upload_url }}/orso_ai
         asset_path: ${{steps.download-linux.outputs.download-path}}
         asset_name: orso_ai.elf
         asset_content_type: application/x-executable
