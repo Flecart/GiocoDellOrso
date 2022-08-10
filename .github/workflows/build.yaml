@@ -20,7 +20,7 @@ jobs:
 
     - name: run pyinstaller 
       run: cd PyGame && 
-        pyinstaller --windowed --onefile orso_ai.py --add-data "bear_v2.policy;." --add-data "sounds/*;sounds/" --add-data "images/*;images/" --add-data "fonts/*;fonts/" --icon="images/little-bear.ico"
+        pyinstaller --windowed --onefile orso_ai.py --add-data "bear_v2.policy:." --add-data "sounds/*:sounds/" --add-data "images/*:images/" --add-data "fonts/*:fonts/" --icon="images/little-bear.ico"
 
     - uses: actions/upload-artifact@v2
       with:
