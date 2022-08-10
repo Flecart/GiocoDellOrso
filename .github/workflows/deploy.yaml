@@ -17,13 +17,13 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: orso_ai.exe
-        path: ~/orso_ai.exe
+        path: /home/runner/orso_ai.exe
 
     - name: Download orso Linux
       uses: actions/download-artifact@v3
       with:
         name: orso_ai.elf
-        path: ~/orso_ai.elf
+        path: /home/runner/orso_ai.elf
 
     - name: Display structure of downloaded files
       run: ls -R
@@ -43,7 +43,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with: 
         upload_url: ${{ steps.new-release.outputs.upload_url }}
-        asset_path: ~/orso_ai.exe
+        asset_path: /home/runner/orso_ai.exe
         asset_name: orso_ai.exe
         asset_content_type: application/x-msdownload
 
@@ -54,6 +54,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with: 
         upload_url: ${{ steps.new-release.outputs.upload_url }}
-        asset_path: ~/orso_ai.elf
+        asset_path: /home/runner/orso_ai.elf
         asset_name: orso_ai.elf
         asset_content_type: application/x-executable
