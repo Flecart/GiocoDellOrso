@@ -15,19 +15,16 @@ jobs:
 
     steps:
     - name: Download orso Windows
+      id: download-windows
       uses: actions/download-artifact@v3
       with:
         name: orso_ai.exe
-        path: ${{ env.HOME }}/orso_ai.exe
 
     - name: Download orso Linux
+      id: download-linux
       uses: actions/download-artifact@v3
       with:
         name: orso_ai.elf
-        path: ${{ env.HOME }}/orso_ai.elf
-
-    - name: Display structure of downloaded files
-      run: ls -R
 
     - name: Create github release 
       id: new-release
@@ -44,7 +41,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with: 
         upload_url: ${{ steps.new-release.outputs.upload_url }}
-        asset_path: ${{ env.HOME }}/orso_ai.exe
+        asset_path: ${{steps.download-windows.outputs.download-path}}
         asset_name: orso_ai.exe
         asset_content_type: application/x-msdownload
 
@@ -55,6 +52,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with: 
         upload_url: ${{ steps.new-release.outputs.upload_url }}
-        asset_path: ${{ env.HOME }}/orso_ai.elf
+        asset_path: ${{steps.download-linux.outputs.download-path}}
         asset_name: orso_ai.elf
         asset_content_type: application/x-executable
