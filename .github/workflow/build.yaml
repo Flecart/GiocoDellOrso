@@ -1,0 +1,22 @@
+name: Package exe with PyInstaller - Windows
+
+on:
+  push:
+    branches: [ release ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: PyInstaller Windows
+      uses: JackMcKew/pyinstaller-action-windows@main
+      with:
+        path: PyGame/
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: orso_ai.exe
+        path: PyGame/dist
