@@ -36,12 +36,12 @@ jobs:
         release_name: Release v0.1.${{ github.run_number }}
 
     - name: list downloads
-      run: echo "win" && ls -R ${{steps.download-windows.outputs.download-path}}
-      run: echo "linux" && ls -R ${{steps.download-linux.outputs.download-path}}
+      run: echo "win" && ls -R ${{steps.download-windows.outputs.download-path}} &&
+           echo "linux" && ls -R ${{steps.download-linux.outputs.download-path}}
 
     - name: enable read of paths
-      run: chmod +r ${{steps.download-windows.outputs.download-path}}
-      run: chmod +r ${{steps.download-linux.outputs.download-path}}
+      run: chmod +r ${{steps.download-windows.outputs.download-path}} &&
+            chmod +r ${{steps.download-linux.outputs.download-path}}
 
 
 
