@@ -1,0 +1,67 @@
+name: deploy the builded artifacts 
+
+on:
+  push:
+    branches: [ release ]
+
+jobs:
+
+  build: 
+    uses: ./.github/workflows/build.yaml
+
+  release-project:
+    runs-on: ubuntu-latest 
+    needs: build
+
+    steps:
+    - name: Download orso Windows
+      id: download-windows
+      uses: actions/download-artifact@v3
+      with:
+        name: orso_ai.exe
+
+    - name: Download orso Linux
+      id: download-linux
+      uses: actions/download-artifact@v3
+      with:
+        name: orso_ai.elf
+
+    - name: Create github release 
+      id: new-release
+      uses: actions/create-release@v1 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with: 
+        tag_name: v0.1.${{ github.run_number }}
+        release_name: Release v0.1.${{ github.run_number }}
+
+
+    - name: enable read of paths
+      run: chmod +r ${{steps.download-windows.outputs.download-path}} &&
+            chmod +r ${{steps.download-linux.outputs.download-path}}
+
+
+    - name: list downloads
+      run: echo "win" && ls -R ${{steps.download-windows.outputs.download-path}} &&
+           echo "linux" && ls -R ${{steps.download-linux.outputs.download-path}}
+
+    - name: Upload orso Windows 
+      uses: actions/upload-release-asset@v1 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with: 
+        upload_url: ${{ steps.new-release.outputs.upload_url }}
+        asset_path: ${{steps.download-windows.outputs.download-path}}/windows/orso_ai.exe
+        asset_name: orso_ai.exe
+        asset_content_type: application/x-msdownload
+
+    
+    - name: Upload orso Linux
+      uses: actions/upload-release-asset@v1 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with: 
+        upload_url: ${{ steps.new-release.outputs.upload_url }}
+        asset_path: ${{steps.download-linux.outputs.download-path}}/orso_ai
+        asset_name: orso_ai.elf
+        asset_content_type: application/x-executable
