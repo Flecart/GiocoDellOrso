@@ -21,7 +21,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: orso_ai.exe
-        path: orso_ai.exe
+        path: PyGame/dist
   
   build-linux:
     runs-on: ubuntu-latest 
@@ -43,4 +43,4 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: orso_ai.elf
-        path: orso_ai.elf
+        path: PyGame/dist
