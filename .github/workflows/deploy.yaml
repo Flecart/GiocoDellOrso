@@ -1,0 +1,51 @@
+name: deploy the builded artifacts 
+
+on:
+  push:
+    branches: [ release ]
+
+jobs:
+  release-project:
+    runs-on: ubuntu-latest 
+    needs: [build-windows, build-linux]
+
+    steps:
+    - name: Download orso Windows
+      uses: actions/download-artifact@v3
+      with:
+        name: orso_ai.exe
+
+    - name: Download orso Linux
+      uses: actions/download-artifact@v3
+      with:
+        name: orso_ai.elf
+
+    - name: Create github release 
+      id: new-release
+      uses: actions/create-release@v1 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with: 
+        tag_name: v0.1.${{ github.run_number }}
+        release_name: Release v0.1.${{ github.run_number }}
+
+    - name: Upload orso Windows 
+      uses: actions/upload-release-asset@v1 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with: 
+        upload_url: ${{ steps.new-release.outputs.upload_url }}
+        asset_path: PyGame/dist/orso_ai.exe
+        asset_name: orso_ai.exe
+        asset_content_type: application/x-msdownload
+
+    
+    - name: Upload orso Linux
+      uses: actions/upload-release-asset@v1 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with: 
+        upload_url: ${{ steps.new-release.outputs.upload_url }}
+        asset_path: PyGame/dist/orso_ai.elf
+        asset_name: orso_ai.elf
+        asset_content_type: application/x-executable

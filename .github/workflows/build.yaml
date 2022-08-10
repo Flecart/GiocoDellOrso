@@ -1,10 +1,28 @@
-name: Package exe with PyInstaller - Windows
+name: Create executable with win and linux
 
 on:
   push:
     branches: [ release ]
+  pull-request:
+    branches: [ release ]
 
 jobs:
+  build-windows:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: PyInstaller Windows
+      uses: JackMcKew/pyinstaller-action-windows@main
+      with:
+        path: PyGame/
+        requirements: pygame
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: orso_ai.exe
+        path: PyGame/dist
+  
   build-linux:
     runs-on: ubuntu-latest 
 
