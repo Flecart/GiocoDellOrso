@@ -15,6 +15,7 @@ jobs:
       uses: JackMcKew/pyinstaller-action-windows@main
       with:
         path: PyGame/
+        requirements: pygame
 
     - uses: actions/upload-artifact@v2
       with:
