@@ -5,19 +5,24 @@ on:
     branches: [ release ]
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  build-linux:
+    runs-on: ubuntu-latest 
 
     steps:
-    - uses: actions/checkout@v2
-    - name: PyInstaller Windows
-      uses: JackMcKew/pyinstaller-action-windows@main
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
       with:
-        path: PyGame/
-        requirements: pygame
+        python-version: '3.10'
+        cache: 'pip3'
+
+    - name: install pyinstaller 
+      run: pip3 install pyinstaller 
+
+    - name: run pyinstaller 
+      run: cd PyGame && 
+        pyinstaller --windowed --onefile orso_ai.py --add-data "bear_v2.policy;." --add-data "sounds/*;sounds/" --add-data "images/*;images/" --add-data "fonts/*;fonts/" --icon="images/little-bear.ico"
 
     - uses: actions/upload-artifact@v2
       with:
-        name: orso_ai.exe
+        name: orso_ai.elf
         path: PyGame/dist
