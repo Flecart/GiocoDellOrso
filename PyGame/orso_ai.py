@@ -393,6 +393,15 @@ class OrsoPyGame():
         self._m_inizia_cacciatore = OpzioneMenuInizoTurno(self.OPZIONI_TURNO, True, self, (580,485))            
         self._menu_items.add(self._m_inizia_cacciatore)
 
+        # opzioni AI_Menu
+        self.OPZIONI_AI = {
+            0:'AI Orso',
+            1:"Humans"
+        }
+
+        self._m_ai = OpzioneMenuAi(self.OPZIONI_AI, 0, self, (1050,5))
+        self._menu_items.add(self._m_ai)
+
         self._pos_call = (0, 0)
         self._running = True
         while self._running:
@@ -543,6 +552,17 @@ class OpzioneMenu(pygame.sprite.Sprite):
     def action(self):
         raise NotImplementedError("Action must be implemented by child class")
 
+class OpzioneMenuAi(OpzioneMenu):
+    def action(self):
+        global IS_AI_BEAR_PLAYING
+        self.value = (self.value + 1) % 2
+        match self.value:
+            case 0:
+                IS_AI_BEAR_PLAYING = True
+            case 1:
+                IS_AI_BEAR_PLAYING = False
+            case exc:
+                raise ValueError("Ai OptionCode not recognised: ", exc)
 
 class OpzioneMenuInizoTurno(OpzioneMenu):
     def action(self):
