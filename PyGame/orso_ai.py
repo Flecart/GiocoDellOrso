@@ -399,7 +399,7 @@ class OrsoPyGame():
             1:"Humans"
         }
 
-        self._m_ai = OpzioneMenuAi(self.OPZIONI_AI, 0, self, (1050,5))
+        self._m_ai = OpzioneMenuAi(self.OPZIONI_AI, 1, self, (1050,5))
         self._menu_items.add(self._m_ai)
 
         self._pos_call = (0, 0)
