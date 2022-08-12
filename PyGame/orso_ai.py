@@ -647,13 +647,11 @@ class OpzioneMenuAi(OpzioneMenu):
     def action(self):
         global IS_AI_BEAR_PLAYING
         self.value = (self.value + 1) % 2
-        match self.value:
-            case 0:
-                IS_AI_BEAR_PLAYING = True
-            case 1:
-                IS_AI_BEAR_PLAYING = False
-            case exc:
-                raise ValueError("Ai OptionCode not recognised: ", exc)
+
+        if self.value == 0:
+            IS_AI_BEAR_PLAYING = True
+        else:
+            IS_AI_BEAR_PLAYING = False
 
 
 class OpzioneMenuInizoTurno(OpzioneMenu):
