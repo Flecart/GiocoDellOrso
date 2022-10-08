@@ -216,6 +216,7 @@ class HumanPlayer(AbstractPlayer):
     def get_action(self, actions: tuple[int, int], board: brd.Board):
         """ Get the action to be taken """
         while True:
+            board.display()
             try:
                 start = int(input('Enter the starting position: '))
                 target = int(input('Enter the target position: '))
