@@ -34,11 +34,11 @@ class AbstractPlayer:
         """
 
         actions = []
-        for i in range(len(self._positions)):
-            if board[self._positions[i]] == self._symbol:
-                for j in brd.Board.adjacent[self._positions[i]]:
+        for position in self._positions:
+            if board[position] == self._symbol:
+                for j in brd.Board.adjacent[position]:
                     if board[j] == board.get_default_char():
-                        actions.append((self._positions[i], j))
+                        actions.append((position, j))
 
         return sorted(actions)
 
@@ -59,9 +59,8 @@ class AbstractPlayer:
         """
         Update the position of the player
         """
-
-        for i in range(len(self._positions)):
-            if self._positions[i] == action[0]:
+        for i, position in enumerate(self._positions):
+            if position == action[0]:
                 self._positions[i] = action[1]
                 break
 
@@ -83,10 +82,22 @@ class AbstractPlayer:
         """
         Add the state to the player
         """
-        pass # abstract method
+        pass
+
 class AIPlayer(AbstractPlayer):
     """
     AI player class
+    Uses some default values for the hyperparameters
+    The values are
+
+    exp_rate: float = 0.3
+    alpha: float = 0.2
+    gamma: float = 0.9
+    loss_reward: int = -1
+    win_reward: int = 1
+
+    If you want to modify it, pass the values as keyword arguments
+    e.g. AIPlayer(positions, name, symbol, exp_rate=0.5, alpha=0.5, gamma=0.5)
     """
 
     def __init__(self,
@@ -97,8 +108,7 @@ class AIPlayer(AbstractPlayer):
         super().__init__(positions, name, symbol)
         self.states: list[str] = []  # record all positions taken
         self.exp_rate: float = (
-            kwargs['exp_rate'] if kwargs.get('exp_rate') is not None else
-            0.3
+            kwargs['exp_rate'] if kwargs.get('exp_rate') is not None else 0.3
         )
         self.alpha: float = (
             kwargs['alpha'] if kwargs.get('alpha') is not None else 0.2
@@ -106,16 +116,14 @@ class AIPlayer(AbstractPlayer):
         self.gamma: float = (
             kwargs['gamma'] if kwargs.get('gamma') is not None else 0.9
         )
-        self.states_value: dict[str, int] = {}  # state -> value
-
         self.loss_reward = (
-            kwargs['loss_reward'] if kwargs.get('loss_reward') is not None else
-            -1
+            kwargs['loss_reward'] if kwargs.get('loss_reward') is not None else -1
         )
         self.win_reward = (
-            kwargs['win_reward'] if kwargs.get('win_reward') is not None else
-            1
+            kwargs['win_reward'] if kwargs.get('win_reward') is not None else 1
         )
+
+        self.states_value: dict[str, int] = {}  # state -> value
 
         self.old_times_trained = []
         self.old_exp_rate = []
