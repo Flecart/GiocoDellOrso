@@ -3,8 +3,8 @@ Implements logic for the player.
 """
 import pickle
 import time
+import numpy as np
 import random
-import board as brd
 
 INFINITY = 1000000
 
@@ -13,76 +13,18 @@ class AbstractPlayer:
     """
     Abstract player class
     """
-
-    def __init__(self, positions: list[int], name: str, symbol: str):
-        self._default_positions = positions.copy()
-        self._positions = positions
+    def __init__(self, name: str):
         self._name = name
-        self._symbol = symbol
 
     def get_name(self) -> str:
-        """name getter"""
         return self._name
 
-    def get_symbol(self) -> str:
-        """symbol getter"""
-        return self._symbol
-
-    def get_actions(self, board: brd.Board) -> list[tuple[int, int]]:
+    def choose_action(self, state: str, actions: list[tuple[int, int]]) -> tuple[int, int]:
         """
-        Get the actions available to the player
-        """
-
-        actions = []
-        for position in self._positions:
-            if board[position] == self._symbol:
-                for j in brd.Board.adjacent[position]:
-                    if board[j] == board.get_default_char():
-                        actions.append((position, j))
-
-        return sorted(actions)
-
-    def get_action(self, actions: tuple[int, int], board: brd.Board) -> int:
-        """
-        Get the action to be performed by the player
+        Choose an action
         """
         raise NotImplementedError
 
-    def reset(self) -> None:
-        """
-        Reset the player
-        """
-        self._positions = self._default_positions.copy()
-        return
-
-    def update_position(self, action: tuple[int, int]) -> None:
-        """
-        Update the position of the player
-        """
-        for i, position in enumerate(self._positions):
-            if position == action[0]:
-                self._positions[i] = action[1]
-                break
-
-    def move(self, board: brd.Board, action=None) -> tuple[int, int]:
-        """
-        Move the player
-        action is a tuple of (starting_position, target_position)
-        """
-        if action is None:
-            actions = self.get_actions(board)
-            action = self.get_action(actions, board)
-        board[action[1]] = self._symbol
-        board[action[0]] = board.get_default_char()
-        self.update_position(action)
-
-        return action
-
-    def add_state(self, state: str) -> None:
-        """
-        Add the state to the player
-        """
-        pass
 
 class AIPlayer(AbstractPlayer):
     """
@@ -93,19 +35,16 @@ class AIPlayer(AbstractPlayer):
     exp_rate: float = 0.3
     alpha: float = 0.2
     gamma: float = 0.9
-    loss_reward: int = -1
-    win_reward: int = 1
+    training: bool = True
 
     If you want to modify it, pass the values as keyword arguments
-    e.g. AIPlayer(positions, name, symbol, exp_rate=0.5, alpha=0.5, gamma=0.5)
+    e.g. AIPlayer(name, exp_rate=0.5, alpha=0.5, gamma=0.5)
     """
 
     def __init__(self,
-                 positions: list[int],
                  name: str,
-                 symbol: str,
                  **kwargs):
-        super().__init__(positions, name, symbol)
+        super().__init__(name)
         self.states: list[str] = []  # record all positions taken
         self.exp_rate: float = (
             kwargs['exp_rate'] if kwargs.get('exp_rate') is not None else 0.3
@@ -116,13 +55,8 @@ class AIPlayer(AbstractPlayer):
         self.gamma: float = (
             kwargs['gamma'] if kwargs.get('gamma') is not None else 0.9
         )
-        self.loss_reward = (
-            kwargs['loss_reward'] if kwargs.get('loss_reward') is not None else -1
-        )
-        self.win_reward = (
-            kwargs['win_reward'] if kwargs.get('win_reward') is not None else 1
-        )
 
+        self.training = kwargs['training'] if kwargs.get('training') is not None else True
         self.states_value: dict[str, int] = {}  # state -> value
 
         self.old_times_trained = []
@@ -139,8 +73,6 @@ class AIPlayer(AbstractPlayer):
         data['exp_rate'] = self.old_exp_rate + [self.exp_rate]
         data['alpha'] = self.old_alpha + [self.alpha]
         data['gamma'] = self.old_gamma + [self.gamma]
-        data['loss_reward'] = self.old_loss_reward + [self.loss_reward]
-        data['win_reward'] = self.old_win_reward + [self.win_reward]
 
         return data
 
@@ -166,72 +98,63 @@ class AIPlayer(AbstractPlayer):
         self.old_exp_rate = data['exp_rate']
         self.old_alpha = data['alpha']
         self.old_gamma = data['gamma']
-        self.old_loss_reward = data['loss_reward']
-        self.old_win_reward = data['win_reward']
         self.old_opponent = data['opponent']
 
-    def get_action(self, actions: tuple[int, int], board: brd.Board):
+    def choose_action(self, state: str, actions: list[tuple[int, int]]) -> tuple[int, int]:
         """ Get the action to be taken """
-        if random.uniform(0, 1) <= self.exp_rate:
-            action = random.choice(actions)
+        if self.training and np.random.binomial(1, self.exp_rate) == 1:
+            return random.choice(actions)
         else:
-            value_max = -INFINITY
-            for act in actions:
-                self.move(board, act)
-                state_value = self.states_value.get(board.get_hash())
-                if state_value is None:
-                    value = 0
-                else:
-                    value = state_value
+            values = [(self.states_value[state, action], action) for action in actions
+                if self.states_value.get((state, action)) is not None]
 
-                if value >= value_max:
-                    value_max = value
-                    action = act
+            valid_actions = [action for value, action in values
+                if value == max(values, key=lambda x: x[0])[0]]
+            if len(valid_actions) == 0:
+                return random.choice(actions)
 
-                self.move(board, (act[1], act[0]))
+            return random.choice(valid_actions)
 
-        return action
+    def feed_reward(self,
+        state:str,
+        next_state: str,
+        action_taken: tuple[int, int],
+        actions: list[tuple[int, int]],
+        reward: int):
+        if self.states_value.get((state, action_taken)) is None:
+            self.states_value[state, action_taken] = 0
 
-    # append a hash state
-    def add_state(self, state: str):
-        """Add a state to the list of states"""
-        self.states.append(state)
+        try:
+            old_max_value = np.max([
+                self.states_value[next_state, action]
+                for action in actions
+                if self.states_value.get((next_state, action)) is not None
+            ])
+        except ValueError:  # probably empty array
+            old_max_value = 0
 
-    # at the end of game, backpropagate and update states value
-    def feed_reward(self, has_won: bool):
-        """ Feed the reward to the player """
-        reward = self.win_reward if has_won else self.loss_reward
-
-        for state in reversed(self.states):
-            if self.states_value.get(state) is None:
-                self.states_value[state] = 0
-            self.states_value[state] += self.alpha * (
-                self.gamma * reward - self.states_value[state]
-            )
-            reward = self.states_value[state]
-
-    def reset(self):
-        """ Reset the player """
-        super().reset()
-        self.states = []
-
+        self.states_value[state, action_taken] += self.alpha * (
+            reward + self.gamma * old_max_value -
+            self.states_value[state, action_taken]
+        )
 
 class HumanPlayer(AbstractPlayer):
     """
     Human player class
+    Represents a player controlled by a human
     """
 
-    def get_action(self, actions: tuple[int, int], board: brd.Board):
+    def choose_action(self, state: str, actions: tuple[int, int]):
         """ Get the action to be taken """
         while True:
-            board.display()
+            print('Available actions: ', actions)
             try:
                 start = int(input('Enter the starting position: '))
                 target = int(input('Enter the target position: '))
-                action = (start, target) 
+                action = (start, target)
                 if action in actions:
                     return action
                 else:
-                    print('Invalid action')
+                    print('Invalid action, input a valid action')
             except ValueError:
                 print('Invalid action')

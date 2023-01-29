@@ -2,12 +2,18 @@
 This module is used as board abstraction for the game.
 """
 
-from board_fwd import Board # forward declaration of the board to solve circular imports
-from player import AbstractPlayer
+from player import AbstractPlayer, AIPlayer
+import numpy as np
 
+# The values encode the character string for these
+# players in the game board
 HUNTER = 1
 BEAR = 2
 
+
+DEFAULT_HUNTER_POSITION = [0, 1, 2]
+DEFAULT_BEAR_POSITION = [20]
+BOARD_SIZE = 21
 
 class Board:
     """
@@ -35,9 +41,15 @@ class Board:
                 [16, 17, 20],
                 [18, 17, 19]]
 
-    def __init__(self, size: int, default_char='_'):
+    def __init__(self, default_char='_'):
         self._default_char = default_char
-        self._cells = [default_char] * size
+        self._cells = [default_char] * BOARD_SIZE
+        for hunter in DEFAULT_HUNTER_POSITION:
+            self._cells[hunter] = str(HUNTER)
+
+        for bear in DEFAULT_BEAR_POSITION:
+            self._cells[bear] = str(BEAR)
+
         self._last_action = None
 
     def __str__(self):
@@ -64,6 +76,31 @@ class Board:
     def get_size(self) -> int:
         """ get size of the board """
         return len(self._cells)
+
+    def apply_action(self, action: tuple[int, int]):
+        """ apply action to the board 
+            Represents a move from action[0] to action[1]
+            from a player.
+        """
+
+        self._cells[action[1]] = self._cells[action[0]]
+        self._cells[action[0]] = self._default_char
+        self._last_action = action
+
+    def get_actions(self, player_symbol: str) -> list[tuple[int, int]]:
+        """ 
+        Returns list of available actions (starting_position, target_position) 
+        We are sure that the end location is empty
+        """
+        actions = []
+
+        for i, symbol in enumerate(self._cells):
+            if symbol == player_symbol:
+                for target in self.adjacent[i]:
+                    if self._cells[target] == self._default_char:
+                        actions.append((i, target))
+
+        return actions
 
     def get_default_char(self) -> str:
         """ get default character """
@@ -99,15 +136,17 @@ class Game:
                   '_1__2__11____________',
                   '12_11________________']
 
-    def __init__(self, 
-            board: Board, 
-            player1: AbstractPlayer, 
-            player2: AbstractPlayer, 
+    def __init__(self,
+            board: Board,
+            player0: AbstractPlayer,
+            player1: AbstractPlayer,
+            display_board: bool = False,
             max_turns: int = 300):
         self._default_cells = board._cells.copy()
         self._board = board
+        self._player_0: AbstractPlayer = player0
         self._player_1: AbstractPlayer = player1
-        self._player_2: AbstractPlayer = player2
+        self._display_board: bool = display_board
         self._turn: int = 0
         self._max_turns: int = max_turns
         self._winner: 0 | 1 | 2 = None
@@ -117,10 +156,8 @@ class Game:
         Check if the game has ended
         """
         if self._board.get_hash() in self.end_states:
-            self._winner = HUNTER
             return True
         elif self._turn >= self._max_turns:
-            self._winner = BEAR
             return True
         else:
             return False
@@ -144,33 +181,76 @@ class Game:
         elif self._winner == BEAR:
             print("The bear won!")
 
-    def switch_players(self, curr_player: AbstractPlayer) -> AbstractPlayer:
+    def compute_reward(self, player_num: int) -> int:
         """
-        Switch players
-        """
-        if curr_player is self._player_1:
-            return self._player_2
-        else:
-            return self._player_1
+        Compute the reward for the given player
 
-    def play(self, show_board: bool = False) -> int:
+        Important observations:
+        if the game has not ended we need to put the hunters in pain,
+        so that they are more motivated to end the game, as quickly as possible
+
+        For the bear, we want him to take as much time as possible to win, so we only
+        penalize the defeat.
         """
-        Play the game
+        if player_num + 1 == HUNTER:
+            if self._winner == HUNTER:
+                return 0
+            return -1
+        elif player_num + 1 == BEAR:
+            if self._winner == HUNTER:
+                return -1
+            return 0
+
+        raise ValueError("Invalid player symbol")
+
+    def play(self) -> int:
         """
-        curr_player = self._player_1
+        Main game loop, continues to play until the game has ended
+        and gives the reward to the AI players
+        """
+        curr_player = self._player_0
+        player_num = 0
+        symbol = str(player_num + 1)
+
         while True:
-            if show_board:
+            if self._display_board:
                 self._board.display()
+                input("Enter to continue")
 
-            curr_player.move(self._board)
-            curr_player.add_state(self._board.get_hash())
-            if curr_player.get_symbol() == '2':
+            board_state = self._board.get_hash()
+            action = curr_player.choose_action(
+                state=board_state,
+                actions=self._board.get_actions(symbol)
+            )
+
+            player_num += 1
+            if player_num == 2:
                 self._turn += 1
+                player_num = 0
 
+            self._board.apply_action(action)
             if self.has_ended():
+                if self._turn >= self._max_turns:
+                    self._winner = BEAR
+                else:
+                    self._winner = HUNTER
+
+            if self._winner is not None:
+                if isinstance(curr_player, AIPlayer):
+                    curr_player.feed_reward(
+                        state=board_state,
+                        next_state=self._board.get_hash(),
+                        action_taken=action,
+                        actions=self._board.get_actions(symbol),
+                        reward=self.compute_reward(player_num)
+                    )
                 break
-                
-            curr_player = self.switch_players(curr_player)
+
+            if player_num == 1:
+                curr_player = self._player_1
+            else:
+                curr_player = self._player_0
+            symbol = str(player_num + 1)
 
         return self.get_winner()
 
@@ -180,37 +260,16 @@ class Game:
         """
         for _ in range(n_times):
             self.play()
-            self.apply_reward()
-            self.reset()
 
-        self._player_1.save_policy(
-            n_times,
-            self._player_2.get_state_info(n_times)
-        )
-        self._player_2.save_policy(
+        self._player_0.save_policy(
             n_times,
             self._player_1.get_state_info(n_times)
         )
-        print("Saved policy")
-
-    def apply_reward(self) -> None:
-        """
-        Apply reward to the players
-        """
-        bear = (
-            self._player_1 if self._player_1.get_symbol() == '2' else
-            self._player_2
+        self._player_1.save_policy(
+            n_times,
+            self._player_0.get_state_info(n_times)
         )
-        hunter = (
-            self._player_2 if self._player_1.get_symbol() == '2' else
-            self._player_1
-        )
-        if self._winner == HUNTER:
-            bear.feed_reward(has_won=False)
-            hunter.feed_reward(has_won=True)
-        elif self._winner == BEAR:
-            bear.feed_reward(has_won=True)
-            hunter.feed_reward(has_won=False)
+        print(f"Training done, saved policies, {n_times} games played")
 
     def reset(self) -> None:
         """
@@ -219,5 +278,5 @@ class Game:
         self._turn = 0
         self._board.set_cells(self._default_cells.copy())
         self._winner = None
+        self._player_0.reset()
         self._player_1.reset()
-        self._player_2.reset()
