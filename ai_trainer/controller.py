@@ -34,11 +34,6 @@ def _parse_arguments():
         help='Set this flag if you want hunter to be human player',
         default=False)
 
-    parser.add_argument('--display_board',
-        action='store_true',
-        help='Set this flag if you want to display the board',
-        default=False)
-
     parser.add_argument('--n_games',
         type=int, 
         help='Number of games to play (useful for training phase)',
@@ -62,14 +57,20 @@ def initialize_players() -> tuple[AbstractPlayer, AbstractPlayer]:
     if args.hunter_human:
         hunter_ai = HumanPlayer(name='hunter')
     else:
-        hunter_ai = AIPlayer(name='hunter',training=not args.disable_training)
+        hunter_ai = AIPlayer(name='hunter',
+            training=not args.disable_training,
+            maximize=True
+        )
         if args.hunter_ai_file != DEFAULT_NO_PLAYER:
             hunter_ai.load_policy(args.hunter_ai_file)
 
     if args.bear_human:
         bear_ai = HumanPlayer(name='bear')
     else:
-        bear_ai = AIPlayer(name='bear', training=not args.disable_training)
+        bear_ai = AIPlayer(name='bear', 
+            training=not args.disable_training,
+            maximize=False
+        )
         if (args.bear_ai_file != DEFAULT_NO_PLAYER):
             bear_ai.load_policy(args.bear_ai_file)
 
@@ -82,9 +83,11 @@ if __name__ == '__main__':
         random.seed(args.seed)
 
     hunter_player, bear_player = initialize_players()
+    # If i want to play as human, i will need to see the board!
+    display_board = args.hunter_human or args.bear_human 
 
     board = Board()
-    game = Game(board, hunter_player, bear_player, args.display_board)
+    game = Game(board, hunter_player, bear_player, display_board)
 
     if not args.disable_training:
         game.train(args.n_games)

@@ -43,6 +43,7 @@ class AIPlayer(AbstractPlayer):
 
     def __init__(self,
                  name: str,
+                 maximize: bool,
                  **kwargs):
         super().__init__(name)
         self.states: list[str] = []  # record all positions taken
@@ -58,6 +59,7 @@ class AIPlayer(AbstractPlayer):
 
         self.training = kwargs['training'] if kwargs.get('training') is not None else True
         self.states_value: dict[str, int] = {}  # state -> value
+        self.maximize = maximize
 
         self.old_times_trained = []
         self.old_exp_rate = []
@@ -66,6 +68,8 @@ class AIPlayer(AbstractPlayer):
         self.old_loss_reward = []
         self.old_win_reward = []
         self.old_opponent = []
+        self.old_max_turns = []
+        self.old_maximize = []
 
     def get_state_info(self, times_trained):
         data = dict()
@@ -73,10 +77,11 @@ class AIPlayer(AbstractPlayer):
         data['exp_rate'] = self.old_exp_rate + [self.exp_rate]
         data['alpha'] = self.old_alpha + [self.alpha]
         data['gamma'] = self.old_gamma + [self.gamma]
+        data['maximize'] = self.old_maximize + [self.maximize]
 
         return data
 
-    def save_policy(self, times_trained, opponent):
+    def save_policy(self, times_trained, max_turns, opponent):
         """
         Save the policy
         """
@@ -84,7 +89,8 @@ class AIPlayer(AbstractPlayer):
         curr_time = int(time.time())
         data = self.get_state_info(times_trained)
         data['opponent'] = self.old_opponent + [opponent]
-        data['states_value'] = self.states_value
+        data['max_turns'] = self.old_max_turns + [max_turns]
+        data['states_value'] = self.states_value.copy()
 
         with open(f'{str(self._name)}_{curr_time}.policy', 'wb') as file_write:
             pickle.dump(data, file_write)
@@ -99,6 +105,8 @@ class AIPlayer(AbstractPlayer):
         self.old_alpha = data['alpha']
         self.old_gamma = data['gamma']
         self.old_opponent = data['opponent']
+        self.old_maximize = data['maximize']
+        self.old_max_turns = data['max_turns']
 
     def choose_action(self, state: str, actions: list[tuple[int, int]]) -> tuple[int, int]:
         """ Get the action to be taken """
@@ -108,8 +116,13 @@ class AIPlayer(AbstractPlayer):
             values = [(self.states_value[state, action], action) for action in actions
                 if self.states_value.get((state, action)) is not None]
 
+            get_best_value = (lambda x: max(x, key=lambda x: x[0])[0]) \
+                if self.maximize \
+                else (lambda x: min(x, key=lambda x: x[0])[0])
+
             valid_actions = [action for value, action in values
-                if value == max(values, key=lambda x: x[0])[0]]
+                if value == get_best_value(values)]
+
             if len(valid_actions) == 0:
                 return random.choice(actions)
 
@@ -123,9 +136,11 @@ class AIPlayer(AbstractPlayer):
         reward: int):
         if self.states_value.get((state, action_taken)) is None:
             self.states_value[state, action_taken] = 0
-
+        
+        get_best_value = (lambda x: np.max(x)) \
+            if self.maximize else (lambda x: np.min(x))
         try:
-            old_max_value = np.max([
+            old_max_value = get_best_value([
                 self.states_value[next_state, action]
                 for action in actions
                 if self.states_value.get((next_state, action)) is not None

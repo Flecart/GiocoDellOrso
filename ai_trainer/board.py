@@ -3,12 +3,12 @@ This module is used as board abstraction for the game.
 """
 
 from player import AbstractPlayer, AIPlayer
-import numpy as np
+from tqdm import tqdm
 
 # The values encode the character string for these
 # players in the game board
-HUNTER = 1
-BEAR = 2
+HUNTER = 0
+BEAR = 1
 
 
 DEFAULT_HUNTER_POSITION = [0, 1, 2]
@@ -87,13 +87,13 @@ class Board:
         self._cells[action[0]] = self._default_char
         self._last_action = action
 
-    def get_actions(self, player_symbol: str) -> list[tuple[int, int]]:
+    def get_actions(self, player_val: int) -> list[tuple[int, int]]:
         """ 
         Returns list of available actions (starting_position, target_position) 
         We are sure that the end location is empty
         """
         actions = []
-
+        player_symbol = str(player_val)
         for i, symbol in enumerate(self._cells):
             if symbol == player_symbol:
                 for target in self.adjacent[i]:
@@ -123,29 +123,29 @@ class Game:
     """
     Game abstraction
     """
-    end_states = ['2111_________________',
-                  '1_21__1______________',
-                  '__1___2_____11_______',
-                  '______1_____12__1____',
-                  '____________11__2__1_',
-                  '________________11_21',
-                  '_________________1112',
-                  '______________1__12_1',
-                  '_______11_____2___1__',
-                  '____1__21_____1______',
-                  '_1__2__11____________',
-                  '12_11________________']
+    end_states = ['1000_________________',
+                  '0_10__0______________',
+                  '__0___1_____00_______',
+                  '______0_____01__0____',
+                  '____________00__1__0_',
+                  '________________00_10',
+                  '_________________0001',
+                  '______________0__01_0',
+                  '_______00_____1___0__',
+                  '____0__10_____0______',
+                  '_0__1__00____________',
+                  '01_00________________']
 
     def __init__(self,
             board: Board,
             player0: AbstractPlayer,
             player1: AbstractPlayer,
             display_board: bool = False,
-            max_turns: int = 300):
+            max_turns: int = 40):
         self._default_cells = board._cells.copy()
         self._board = board
-        self._player_0: AbstractPlayer = player0
-        self._player_1: AbstractPlayer = player1
+        self._hunter_player: AbstractPlayer = player0
+        self._bear_player: AbstractPlayer = player1
         self._display_board: bool = display_board
         self._turn: int = 0
         self._max_turns: int = max_turns
@@ -162,12 +162,6 @@ class Game:
         else:
             return False
 
-    def get_winner(self) -> int:
-        """
-        Get the winner of the game
-        """
-        return self._winner
-
     def print_winner(self) -> None:
         """
         Print the winner of the game
@@ -177,7 +171,7 @@ class Game:
             return
 
         if self._winner == HUNTER:
-            print("The hunter won!")
+            print(f"The hunter won! turns to win -> {self._turn}")
         elif self._winner == BEAR:
             print("The bear won!")
 
@@ -191,14 +185,16 @@ class Game:
 
         For the bear, we want him to take as much time as possible to win, so we only
         penalize the defeat.
+
+        hunter is Max-player, bear is Min-player
         """
-        if player_num + 1 == HUNTER:
+        if player_num == HUNTER:
             if self._winner == HUNTER:
                 return 0
             return -1
-        elif player_num + 1 == BEAR:
+        elif player_num == BEAR:
             if self._winner == HUNTER:
-                return -1
+                return 1
             return 0
 
         raise ValueError("Invalid player symbol")
@@ -208,25 +204,18 @@ class Game:
         Main game loop, continues to play until the game has ended
         and gives the reward to the AI players
         """
-        curr_player = self._player_0
-        player_num = 0
-        symbol = str(player_num + 1)
+        curr_player = self._hunter_player
+        player_num = HUNTER
 
         while True:
             if self._display_board:
                 self._board.display()
-                input("Enter to continue")
 
             board_state = self._board.get_hash()
             action = curr_player.choose_action(
                 state=board_state,
-                actions=self._board.get_actions(symbol)
+                actions=self._board.get_actions(player_num)
             )
-
-            player_num += 1
-            if player_num == 2:
-                self._turn += 1
-                player_num = 0
 
             self._board.apply_action(action)
             if self.has_ended():
@@ -235,48 +224,60 @@ class Game:
                 else:
                     self._winner = HUNTER
 
+            if isinstance(curr_player, AIPlayer):
+                curr_player.feed_reward(
+                    state=board_state,
+                    next_state=self._board.get_hash(),
+                    action_taken=action,
+                    actions=self._board.get_actions(1 - player_num),
+                    reward=self.compute_reward(player_num)
+                )
+
             if self._winner is not None:
-                if isinstance(curr_player, AIPlayer):
-                    curr_player.feed_reward(
-                        state=board_state,
-                        next_state=self._board.get_hash(),
-                        action_taken=action,
-                        actions=self._board.get_actions(symbol),
-                        reward=self.compute_reward(player_num)
-                    )
                 break
+            
+            player_num += 1
+            if player_num == 2:
+                self._turn += 1
+                player_num = 0
 
             if player_num == 1:
-                curr_player = self._player_1
+                curr_player = self._bear_player
             else:
-                curr_player = self._player_0
-            symbol = str(player_num + 1)
+                curr_player = self._hunter_player
 
-        return self.get_winner()
+        return self._winner
 
     def train(self, n_times: int = 100) -> None:
         """
-        Train the players
+        Train the players and save the created policies
+        into files
         """
-        for _ in range(n_times):
-            self.play()
 
-        self._player_0.save_policy(
+        hunter_wins = 0
+        for _ in tqdm(range(n_times)):
+            self.play()
+            if self._winner == HUNTER:
+                hunter_wins += 1
+            self.reset()
+
+        self._hunter_player.save_policy(
             n_times,
-            self._player_1.get_state_info(n_times)
+            self._max_turns,
+            self._bear_player.get_state_info(n_times)
         )
-        self._player_1.save_policy(
+        self._bear_player.save_policy(
             n_times,
-            self._player_0.get_state_info(n_times)
+            self._max_turns,
+            self._hunter_player.get_state_info(n_times)
         )
-        print(f"Training done, saved policies, {n_times} games played")
+        print(f"Training done, saved policies, {n_times} games played \n \
+            Number of hunter wins: {hunter_wins}")
 
     def reset(self) -> None:
         """
-        Reset the game
+        Reset the game variables to their default values
         """
         self._turn = 0
         self._board.set_cells(self._default_cells.copy())
         self._winner = None
-        self._player_0.reset()
-        self._player_1.reset()
