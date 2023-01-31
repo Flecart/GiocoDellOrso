@@ -100,33 +100,36 @@ class AIPlayer(AbstractPlayer):
         with open(file, 'rb') as file_read:
             data = pickle.load(file_read)
         self.states_value = data['states_value']
-        self.old_times_trained = data['times_trained']
-        self.old_exp_rate = data['exp_rate']
-        self.old_alpha = data['alpha']
-        self.old_gamma = data['gamma']
-        self.old_opponent = data['opponent']
-        self.old_maximize = data['maximize']
-        self.old_max_turns = data['max_turns']
+        self.old_times_trained = data['times_trained'] if 'times_trained' in data and data['times_trained'] is not None else []
+        self.old_exp_rate = data['exp_rate'] if 'exp_rate' in data and data['exp_rate'] is not None else []
+        self.old_alpha = data['alpha'] if 'alpha' in data and data['alpha'] is not None else []
+        self.old_gamma = data['gamma'] if 'gamma' in data and data['gamma'] is not None else []
+        self.old_opponent = data['opponent'] if 'opponent' in data and data['opponent'] is not None else []
+        self.old_maximize = data['maximize'] if 'maximize' in data and data['maximize'] is not None else []
+        self.old_max_turns = data['max_turns'] if 'max_turns' in data and data['max_turns'] is not None else []
 
-    def choose_action(self, state: str, actions: list[tuple[int, int]]) -> tuple[int, int]:
+    def choose_action(self, reachable_states: list[int], actions) -> int:
         """ Get the action to be taken """
-        if self.training and np.random.binomial(1, self.exp_rate) == 1:
-            return random.choice(actions)
+        values = [(self.states_value[state], state) for state in reachable_states
+            if self.states_value.get((state)) is not None]
+
+        get_best_value = (lambda x: max(x, key=lambda x: x[0])[0]) \
+            if self.maximize \
+            else (lambda x: min(x, key=lambda x: x[0])[0])
+
+        valid_actions = [i for i, value in enumerate(values)
+            if value == get_best_value(values)]
+
+        if len(valid_actions) == 0:
+            best_choice = random.choice(np.arange(len(reachable_states)))
         else:
-            values = [(self.states_value[state, action], action) for action in actions
-                if self.states_value.get((state, action)) is not None]
+            best_choice = random.choice(valid_actions)
 
-            get_best_value = (lambda x: max(x, key=lambda x: x[0])[0]) \
-                if self.maximize \
-                else (lambda x: min(x, key=lambda x: x[0])[0])
-
-            valid_actions = [action for value, action in values
-                if value == get_best_value(values)]
-
-            if len(valid_actions) == 0:
-                return random.choice(actions)
-
-            return random.choice(valid_actions)
+        print(best_choice)
+        print(reachable_states, values)
+        print(f'AIPlayer {self._name} chose {reachable_states[best_choice]} with value \
+            {self.states_value[reachable_states[best_choice]] if self.states_value.get((reachable_states[best_choice])) is not None else 0}')
+        return best_choice  
 
     def feed_reward(self,
         state:str,
@@ -168,7 +171,7 @@ class HumanPlayer(AbstractPlayer):
                 target = int(input('Enter the target position: '))
                 action = (start, target)
                 if action in actions:
-                    return action
+                    return actions.index(action)
                 else:
                     print('Invalid action, input a valid action')
             except ValueError:

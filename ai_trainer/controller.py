@@ -5,7 +5,9 @@ import argparse
 import random
 from board import Board, Game
 from player import AIPlayer, HumanPlayer, AbstractPlayer
-
+import sys, resource
+sys.setrecursionlimit(30000)
+resource.setrlimit(resource.RLIMIT_STACK, (2**29,-1))
 DEFAULT_NO_PLAYER = 'random'
 
 def _parse_arguments():
@@ -48,6 +50,11 @@ def _parse_arguments():
         type=int,
         help='Seed for the random generator (None for random seed)',
         default=None)
+
+    parser.add_argument('--boh',
+        action='store_true',
+        default=False)
+
     return parser.parse_args()
 
 def initialize_players() -> tuple[AbstractPlayer, AbstractPlayer]:
@@ -89,7 +96,10 @@ if __name__ == '__main__':
     board = Board()
     game = Game(board, hunter_player, bear_player, display_board)
 
-    if not args.disable_training:
+    if args.boh:
+        game.calculate_mini_max()
+
+    elif not args.disable_training:
         game.train(args.n_games)
     else:
         for _ in range(args.n_games):

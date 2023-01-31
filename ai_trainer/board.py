@@ -4,6 +4,7 @@ This module is used as board abstraction for the game.
 
 from player import AbstractPlayer, AIPlayer
 from tqdm import tqdm
+import pickle
 
 # The values encode the character string for these
 # players in the game board
@@ -50,7 +51,7 @@ class Board:
         for bear in DEFAULT_BEAR_POSITION:
             self._cells[bear] = str(BEAR)
 
-        self._last_action = None
+        self._last_action = []
 
     def __str__(self):
         return ''.join(self._cells)
@@ -62,8 +63,57 @@ class Board:
         self._cells[index] = value
 
     def get_hash(self) -> str:
-        """ get hash of the board """
-        return str(self)
+        """ 
+        get hash of the board, this is not a proper hash, as
+        it's easy to convert it back to the board, just an encoding, but
+        i want to keep this name.
+        """
+
+        def get_value(char: str):
+            if char == '_':
+                return 0
+            elif char == '0':
+                return 1
+            elif char == '1':
+                return 2
+            else:
+                raise ValueError("Invalid character")
+
+        val = 0
+        for i, ch in enumerate(str(self)):
+            val += get_value(ch) * 3 ** i
+
+        return val
+
+    def str_from_hash(hash: int) -> str:
+        """ get string from hash """
+        def get_char(val: int):
+            if val == 0:
+                return '_'
+            elif val == 1:
+                return '0'
+            elif val == 2:
+                return '1'
+            else:
+                raise ValueError("Invalid character")
+
+        str = ""
+        for i in range(21):
+            str += get_char(hash % 3)
+            hash = hash // 3
+
+        return str
+
+    def reachable_states(self, actions: list[tuple[int, int]]) -> list[int]:
+        """ get reachable states from a state """
+        states = []
+        for action in actions:
+            self.apply_action(action)
+            states.append(self.get_hash())
+            self.undo_action()
+
+        return states
+
 
     def get_cells(self) -> list[str]:
         """ get cells """
@@ -85,7 +135,14 @@ class Board:
 
         self._cells[action[1]] = self._cells[action[0]]
         self._cells[action[0]] = self._default_char
-        self._last_action = action
+        self._last_action += [action]
+    
+    def undo_action(self):
+        """ undo last action """
+        action = self._last_action[-1]
+        self._cells[action[0]] = self._cells[action[1]]
+        self._cells[action[1]] = self._default_char
+        self._last_action = self._last_action[:-1]
 
     def get_actions(self, player_val: int) -> list[tuple[int, int]]:
         """ 
@@ -123,18 +180,16 @@ class Game:
     """
     Game abstraction
     """
-    end_states = ['1000_________________',
-                  '0_10__0______________',
-                  '__0___1_____00_______',
-                  '______0_____01__0____',
-                  '____________00__1__0_',
-                  '________________00_10',
-                  '_________________0001',
-                  '______________0__01_0',
-                  '_______00_____1___0__',
-                  '____0__10_____0______',
-                  '_0__1__00____________',
-                  '01_00________________']
+
+    # all ends states, base 3 encoded
+    # 2 = bear, 1 = hunter, 0 = empty
+    end_states = [41, 775, 2127231, 46767537, 
+        1250480673, 5983494219, 8652390921, 
+        4395548511, 396995175, 4793985, 8913, 115]
+
+    VISITED = 0
+    BEAR_WIN = 1
+    HUNTER_WIN = 2
 
     def __init__(self,
             board: Board,
@@ -150,6 +205,8 @@ class Game:
         self._turn: int = 0
         self._max_turns: int = max_turns
         self._winner: 0 | 1 | 2 = None
+        self.visited_states = dict()
+
 
     def has_ended(self) -> bool:
         """
@@ -212,11 +269,13 @@ class Game:
                 self._board.display()
 
             board_state = self._board.get_hash()
-            action = curr_player.choose_action(
-                state=board_state,
-                actions=self._board.get_actions(player_num)
+            actions = self._board.get_actions(player_num)
+            action_idx = curr_player.choose_action(
+                self._board.reachable_states(actions),
+                actions
             )
-
+            action = actions[action_idx]
+            
             self._board.apply_action(action)
             if self.has_ended():
                 if self._turn >= self._max_turns:
@@ -224,7 +283,7 @@ class Game:
                 else:
                     self._winner = HUNTER
 
-            if isinstance(curr_player, AIPlayer):
+            if False and isinstance(curr_player, AIPlayer):
                 curr_player.feed_reward(
                     state=board_state,
                     next_state=self._board.get_hash(),
@@ -274,6 +333,102 @@ class Game:
         print(f"Training done, saved policies, {n_times} games played \n \
             Number of hunter wins: {hunter_wins}")
 
+    def calculate_mini_max(self) -> None:
+        """
+        In questo algoritmo consideriamo una minimax senza alpha-beta pruning
+        dato che il numero di stati è molto piccolo. Consideriamo configurazioni
+        di vittoria per l'hunter quelli codificati in end_states, mentre per il bear
+        configurazioni che sono state già visitate (se l'orso è in grado di creare
+        dei cicli, può continuare indefinitamente a giocare, quindi la sua vittoria
+        è assicurata)
+        """
+        self.reset()
+
+        # TODO vedere chi sia il player migliore a seconda di chi giocava prima
+        self.hunter_play()
+
+        print("Saving the states values")
+        data = dict()
+        data['states_value'] = self.visited_states.copy()
+        with open(f'states_value.pickle', 'wb') as handle:
+            pickle.dump(data, handle)
+        print("Done, states saved")
+
+
+
+    def hunter_play(self) -> int:
+        """ I cacciatori """
+        current_hash = self._board.get_hash()
+        if current_hash in self.visited_states:
+            if self.visited_states[current_hash] == self.VISITED:
+                return self.BEAR_WIN
+            return self.visited_states[current_hash]
+
+        self.visited_states[current_hash] = self.VISITED
+        hunter_win = False
+        for action in self._board.get_actions(HUNTER):
+            self._board.apply_action(action)
+            state = self._board.get_hash()
+            
+            # nel caso in cui esista una azione che porta alla vittoria dell'hunter
+            # la seguo subito e saprò che vincerò.
+            if state in self.visited_states and self.visited_states[state] == self.HUNTER_WIN:
+                self._board.undo_action()
+                self.visited_states[current_hash] = self.HUNTER_WIN
+                hunter_win = True # così esploro tutti gli stati
+                continue
+
+            res = self.bear_play()
+            
+            if res == self.HUNTER_WIN:
+                self.visited_states[current_hash] = self.HUNTER_WIN
+                self._board.undo_action()
+                hunter_win = True
+                continue
+
+            self._board.undo_action()
+        
+        if hunter_win:
+            return self.HUNTER_WIN
+
+        self.visited_states[current_hash] = self.BEAR_WIN
+        return self.BEAR_WIN
+
+    def bear_play(self) -> int:
+        """ Il orso """
+        current_hash = self._board.get_hash()
+        if current_hash in self.visited_states:
+            if self.visited_states[current_hash] == self.VISITED:
+                return self.BEAR_WIN
+            return self.visited_states[current_hash]
+
+        self.visited_states[current_hash] = self.VISITED
+        bear_win = False
+        for action in self._board.get_actions(BEAR):
+            self._board.apply_action(action)
+            state = self._board.get_hash()
+            
+            if state in self.visited_states and self.visited_states[state] == self.BEAR_WIN:
+                self._board.undo_action()
+                self.visited_states[current_hash] = self.BEAR_WIN
+                bear_win = True
+                continue
+            
+            res = self.hunter_play()
+            
+            if res == self.BEAR_WIN:
+                self.visited_states[current_hash] = self.BEAR_WIN
+                self._board.undo_action()
+                bear_win = True
+                continue
+
+            self._board.undo_action()
+        
+        if bear_win:
+            return self.BEAR_WIN
+        self.visited_states[current_hash] = self.HUNTER_WIN
+        return self.HUNTER_WIN
+
     def reset(self) -> None:
         """
         Reset the game variables to their default values
@@ -281,3 +436,6 @@ class Game:
         self._turn = 0
         self._board.set_cells(self._default_cells.copy())
         self._winner = None
+        visited_states = dict()
+        for end_state in self.end_states:
+            self.visited_states[end_state] = self.HUNTER_WIN
