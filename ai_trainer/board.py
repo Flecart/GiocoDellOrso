@@ -44,23 +44,20 @@ class Board:
 
     def __init__(self, default_char='_'):
         self._default_char = default_char
-        self._cells = [default_char] * BOARD_SIZE
-        for hunter in DEFAULT_HUNTER_POSITION:
-            self._cells[hunter] = str(HUNTER)
-
-        for bear in DEFAULT_BEAR_POSITION:
-            self._cells[bear] = str(BEAR)
-
+        self.hunters = [0, 1, 2]
+        self.bears = [20]
         self._last_action = []
 
     def __str__(self):
         return ''.join(self._cells)
 
     def __getitem__(self, index):
-        return self._cells[index]
+        for hunter in self._hunters:
+            return str(HUNTER)
+        for bear in self._bears:
+            return str(BEAR)
 
-    def __setitem__(self, index, value):
-        self._cells[index] = value
+        return '_'
 
     def get_hash(self) -> str:
         """ 
@@ -68,20 +65,11 @@ class Board:
         it's easy to convert it back to the board, just an encoding, but
         i want to keep this name.
         """
-
-        def get_value(char: str):
-            if char == '_':
-                return 0
-            elif char == '0':
-                return 1
-            elif char == '1':
-                return 2
-            else:
-                raise ValueError("Invalid character")
-
         val = 0
-        for i, ch in enumerate(str(self)):
-            val += get_value(ch) * 3 ** i
+        for i in self._hunters:
+            val += (HUNTER + 1) * 3 ** i
+        for i in self._bear:
+            val += (BEAR + 1) * 3 ** i
 
         return val
 
@@ -90,15 +78,15 @@ class Board:
         def get_char(val: int):
             if val == 0:
                 return '_'
-            elif val == 1:
+            elif val == HUNTER + 1:
                 return '0'
-            elif val == 2:
+            elif val == BEAR + 1:
                 return '1'
             else:
-                raise ValueError("Invalid character")
+                raise ValueError("Invalid value")
 
         str = ""
-        for i in range(21):
+        for _ in range(21):
             str += get_char(hash % 3)
             hash = hash // 3
 
@@ -335,17 +323,9 @@ class Game:
 
     def calculate_mini_max(self) -> None:
         """
-        In questo algoritmo consideriamo una minimax senza alpha-beta pruning
-        dato che il numero di stati è molto piccolo. Consideriamo configurazioni
-        di vittoria per l'hunter quelli codificati in end_states, mentre per il bear
-        configurazioni che sono state già visitate (se l'orso è in grado di creare
-        dei cicli, può continuare indefinitamente a giocare, quindi la sua vittoria
-        è assicurata)
         """
         self.reset()
 
-        # TODO vedere chi sia il player migliore a seconda di chi giocava prima
-        self.hunter_play()
 
         print("Saving the states values")
         data = dict()
@@ -358,75 +338,10 @@ class Game:
 
     def hunter_play(self) -> int:
         """ I cacciatori """
-        current_hash = self._board.get_hash()
-        if current_hash in self.visited_states:
-            if self.visited_states[current_hash] == self.VISITED:
-                return self.BEAR_WIN
-            return self.visited_states[current_hash]
-
-        self.visited_states[current_hash] = self.VISITED
-        hunter_win = False
-        for action in self._board.get_actions(HUNTER):
-            self._board.apply_action(action)
-            state = self._board.get_hash()
-            
-            # nel caso in cui esista una azione che porta alla vittoria dell'hunter
-            # la seguo subito e saprò che vincerò.
-            if state in self.visited_states and self.visited_states[state] == self.HUNTER_WIN:
-                self._board.undo_action()
-                self.visited_states[current_hash] = self.HUNTER_WIN
-                hunter_win = True # così esploro tutti gli stati
-                continue
-
-            res = self.bear_play()
-            
-            if res == self.HUNTER_WIN:
-                self.visited_states[current_hash] = self.HUNTER_WIN
-                self._board.undo_action()
-                hunter_win = True
-                continue
-
-            self._board.undo_action()
-        
-        if hunter_win:
-            return self.HUNTER_WIN
-
-        self.visited_states[current_hash] = self.BEAR_WIN
         return self.BEAR_WIN
 
     def bear_play(self) -> int:
         """ Il orso """
-        current_hash = self._board.get_hash()
-        if current_hash in self.visited_states:
-            if self.visited_states[current_hash] == self.VISITED:
-                return self.BEAR_WIN
-            return self.visited_states[current_hash]
-
-        self.visited_states[current_hash] = self.VISITED
-        bear_win = False
-        for action in self._board.get_actions(BEAR):
-            self._board.apply_action(action)
-            state = self._board.get_hash()
-            
-            if state in self.visited_states and self.visited_states[state] == self.BEAR_WIN:
-                self._board.undo_action()
-                self.visited_states[current_hash] = self.BEAR_WIN
-                bear_win = True
-                continue
-            
-            res = self.hunter_play()
-            
-            if res == self.BEAR_WIN:
-                self.visited_states[current_hash] = self.BEAR_WIN
-                self._board.undo_action()
-                bear_win = True
-                continue
-
-            self._board.undo_action()
-        
-        if bear_win:
-            return self.BEAR_WIN
-        self.visited_states[current_hash] = self.HUNTER_WIN
         return self.HUNTER_WIN
 
     def reset(self) -> None:
