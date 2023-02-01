@@ -8,6 +8,7 @@ import pickle
 
 # The values encode the character string for these
 # players in the game board
+# DO NOT CHANGE THESE VALUES ~~~~> THEY ARE USED IN THE GAME LOGIC (Many assumptions on these values)
 HUNTER = 0
 BEAR = 1
 
@@ -18,7 +19,8 @@ BOARD_SIZE = 21
 
 class Board:
     """
-    Board abstraction
+    Board abstraction, represents a board in the bear game
+    The default char should not be equal to the char of Hunter or Bear
     """
     adjacent = [[1, 2, 3],  # 0
                 [0, 3, 4],
@@ -44,17 +46,23 @@ class Board:
 
     def __init__(self, default_char='_'):
         self._default_char = default_char
-        self.hunters = [0, 1, 2]
-        self.bears = [20]
+        self._hunters = [0, 1, 2]
+        self._bear = [20]
         self._last_action = []
 
     def __str__(self):
-        return ''.join(self._cells)
+        string_rep = self._default_char * 21
+        for i in self.hunters:
+            string_rep = string_rep[:i] + "0" + string_rep[i+1:]
+        for i in self.bears:
+            string_rep = string_rep[:i] + "1" + string_rep[i+1:]
 
-    def __getitem__(self, index):
-        for hunter in self._hunters:
+        return string_rep
+
+    def __getitem__(self, index: int):
+        for index in self._hunters:
             return str(HUNTER)
-        for bear in self._bears:
+        for index in self._bears:
             return str(BEAR)
 
         return '_'
@@ -73,6 +81,7 @@ class Board:
 
         return val
 
+    @staticmethod
     def str_from_hash(hash: int) -> str:
         """ get string from hash """
         def get_char(val: int):
@@ -92,45 +101,108 @@ class Board:
 
         return str
 
-    def reachable_states(self, actions: list[tuple[int, int]]) -> list[int]:
+    def get_all_states(self) -> list[int]:
+        """ get all possible states """
+        states = set()
+
+        original_hunter = self._hunters
+        original_bear = self._bear
+
+        for hunter_0 in range(19):
+            for hunter_1 in range(hunter_0 + 1, 20):
+                for hunter_2 in range(hunter_1 + 1, 21):
+                    for bear in range(21):
+                        if bear not in [hunter_0, hunter_1, hunter_2]:
+                            self._hunters = [hunter_0, hunter_1, hunter_2]
+                            self._bear = [bear]
+                            states.add(self.get_hash())
+        self._hunters = original_hunter
+        self._bear = original_bear
+
+        return list(states)
+
+    @staticmethod
+    def reachable_states(state, actions: list[tuple[int, int]]) -> list[int]:
         """ get reachable states from a state """
         states = []
         for action in actions:
-            self.apply_action(action)
-            states.append(self.get_hash())
-            self.undo_action()
+            states.append(Board.apply_action_state(state, action))
 
         return states
 
-
-    def get_cells(self) -> list[str]:
-        """ get cells """
-        return self._cells
-
-    def set_cells(self, cells: list[str]) -> None:
-        """ set cells """
-        self._cells = cells
-
-    def get_size(self) -> int:
-        """ get size of the board """
-        return len(self._cells)
+    def reset(self) -> None:
+        self.hunters = [0, 1, 2]
+        self.bears = [20]
+        self._last_action = []
 
     def apply_action(self, action: tuple[int, int]):
         """ apply action to the board 
             Represents a move from action[0] to action[1]
             from a player.
         """
+        for i, val in enumerate(self._hunters):
+            if val == action[0]:
+                self._hunters[i] = action[1]
+                break
+        
+        for i, val in enumerate(self._bear):
+            if val == action[0]:
+                self._bear[i] = action[1]
+                break
 
-        self._cells[action[1]] = self._cells[action[0]]
-        self._cells[action[0]] = self._default_char
         self._last_action += [action]
+    
+    @staticmethod
+    def apply_action_state(state: int, action: tuple[int, int]) -> int:
+        start, end = action
+        copy_state = state
+        if start > 0:
+            copy_state = copy_state // (3 ** (start))
+
+        value = copy_state % 3
+        return state - value * (3 ** start) + value * (3 ** end)
     
     def undo_action(self):
         """ undo last action """
         action = self._last_action[-1]
-        self._cells[action[0]] = self._cells[action[1]]
-        self._cells[action[1]] = self._default_char
+
+        for i, val in enumerate(self._hunters):
+            if val == action[0]:
+                self._hunters[i] = action[1]
+                break
+        
+        for i, val in enumerate(self._bear):
+            if val == action[0]:
+                self._bear[i] = action[1]
+                break
         self._last_action = self._last_action[:-1]
+
+    @staticmethod
+    def get_actions_state(state, is_hunter: bool) -> list[tuple[int, int]]:
+        hunters = []
+        bear = []
+        for i in range(0, 21):
+            val = state % 3
+            if val == HUNTER + 1:
+                hunters.append(i)
+            elif val == BEAR + 1:
+                bear.append(i)
+            state = state // 3
+
+        actions = []
+        
+        if is_hunter:
+            it_vector = hunters
+        else:
+            it_vector = bear
+
+        for i in it_vector:
+            for target in Board.adjacent[i]:
+                if target not in bear and target not in hunters:
+                    actions.append((i, target))
+
+        return actions
+
 
     def get_actions(self, player_val: int) -> list[tuple[int, int]]:
         """ 
@@ -138,12 +210,18 @@ class Board:
         We are sure that the end location is empty
         """
         actions = []
-        player_symbol = str(player_val)
-        for i, symbol in enumerate(self._cells):
-            if symbol == player_symbol:
-                for target in self.adjacent[i]:
-                    if self._cells[target] == self._default_char:
-                        actions.append((i, target))
+        
+        if player_val == HUNTER:
+            it_vector = self._hunters
+        elif player_val == BEAR:
+            it_vector = self._bear
+        else:
+            raise ValueError("Invalid player value")        
+
+        for i in it_vector:
+            for target in self.adjacent[i]:
+                if target not in self._bears and target not in self._hunters:
+                    actions.append((i, target))
 
         return actions
 
@@ -151,17 +229,19 @@ class Board:
         """ get default character """
         return self._default_char
 
-    def display(self):
-        print("            "+self._cells[0]+"            ","             "+"0"+"            ")
-        print("        "+self._cells[1]+"       "+self._cells[2]+"        ","         "+"1"+"       "+"2"+"        ")
-        print("            "+self._cells[3]+"            ","             "+"3"+"            ")
-        print("  "+self._cells[4]+"         "+self._cells[5]+"         "+self._cells[6]+"  ","   "+"4"+"         "+"5"+"         "+"6"+"  ")
-        print(""+self._cells[7]+"   "+self._cells[8]+"   "+self._cells[9]+"   "+self._cells[10]+"   "+self._cells[11]+"   "+self._cells[12]+"   "+self._cells[13]+"",
+    def display(self, cells=None):
+        if cells is None:
+            cells = str(self)
+        print("            "+cells[0]+"            ","             "+"0"+"            ")
+        print("        "+cells[1]+"       "+cells[2]+"        ","         "+"1"+"       "+"2"+"        ")
+        print("            "+cells[3]+"            ","             "+"3"+"            ")
+        print("  "+cells[4]+"         "+cells[5]+"         "+cells[6]+"  ","   "+"4"+"         "+"5"+"         "+"6"+"  ")
+        print(""+cells[7]+"   "+cells[8]+"   "+cells[9]+"   "+cells[10]+"   "+cells[11]+"   "+cells[12]+"   "+cells[13]+"",
               " "+"7"+"   "+"8"+"   "+"9"+"  "+"10"+"  "+"11"+"  "+"12"+"  "+"13"+"")
-        print("  "+self._cells[14]+"         "+self._cells[15]+"         "+self._cells[16]+"  ","  "+"14"+"        "+"15"+"        "+"16"+"")
-        print("            "+self._cells[17]+"            ","            "+"17"+"            ")
-        print("        "+self._cells[18]+"       "+self._cells[19]+"        ","        "+"18"+"      "+"19"+"        ")
-        print("            "+self._cells[20]+"            ","            "+"20"+"            ")
+        print("  "+cells[14]+"         "+cells[15]+"         "+cells[16]+"  ","  "+"14"+"        "+"15"+"        "+"16"+"")
+        print("            "+cells[17]+"            ","            "+"17"+"            ")
+        print("        "+cells[18]+"       "+cells[19]+"        ","        "+"18"+"      "+"19"+"        ")
+        print("            "+cells[20]+"            ","            "+"20"+"            ")
 
 
 class Game:
@@ -185,7 +265,6 @@ class Game:
             player1: AbstractPlayer,
             display_board: bool = False,
             max_turns: int = 40):
-        self._default_cells = board._cells.copy()
         self._board = board
         self._hunter_player: AbstractPlayer = player0
         self._bear_player: AbstractPlayer = player1
@@ -193,8 +272,10 @@ class Game:
         self._turn: int = 0
         self._max_turns: int = max_turns
         self._winner: 0 | 1 | 2 = None
-        self.visited_states = dict()
+        self.visited_states = [dict(), dict()]
+        self.unexplored_states = [list(), list()]
 
+        self.reset()
 
     def has_ended(self) -> bool:
         """
@@ -322,10 +403,17 @@ class Game:
             Number of hunter wins: {hunter_wins}")
 
     def calculate_mini_max(self) -> None:
-        """
-        """
         self.reset()
 
+        curr_dist = 1
+        has_changed = True
+        while has_changed:
+            if curr_dist % 2 == 1:  # hunter
+                has_changed = self.find_hunter_states(curr_dist)
+            else:
+                has_changed = self.find_bear_states(curr_dist)
+            print(curr_dist, len(self.visited_states[BEAR]), len(self.visited_states[HUNTER]), has_changed)
+            curr_dist += 1
 
         print("Saving the states values")
         data = dict()
@@ -334,7 +422,51 @@ class Game:
             pickle.dump(data, handle)
         print("Done, states saved")
 
+    def find_bear_states(self, curr_dist: int) -> bool:
+        state_to_add = []
+        for state in self.unexplored_states[BEAR]:
+            reachable_states = Board.reachable_states(state, 
+                Board.get_actions_state(state, is_hunter=False))
+            
+            is_new_state = all(curr_state in self.visited_states[HUNTER] for curr_state in reachable_states)
+            if is_new_state:
+                state_to_add.append(state)
 
+        if len(state_to_add) == 0:
+            return False
+
+        for state in state_to_add:
+            self.visited_states[BEAR][state] = curr_dist
+            self.unexplored_states[BEAR].remove(state)
+
+        return True
+
+    def find_hunter_states(self, curr_dist: int) -> bool:
+        state_to_add = []
+        for state in self.unexplored_states[HUNTER]:
+            reachable_states = Board.reachable_states(state, 
+                Board.get_actions_state(state, is_hunter=True))
+
+            # self._board.display(Board.str_from_hash(state))
+            # print(Board.get_actions_state(state, True))
+
+            # for state in reachable_states:
+            #     self._board.display(Board.str_from_hash(state))
+
+            # break
+            is_new_state = any(curr_state in self.visited_states[BEAR] for curr_state in reachable_states)
+            if is_new_state:
+                state_to_add.append(state)
+
+        if len(state_to_add) == 0:
+            return False
+
+        for state in state_to_add:
+            self.visited_states[HUNTER][state] = curr_dist
+            self.unexplored_states[HUNTER].remove(state)
+
+
+        return True
 
     def hunter_play(self) -> int:
         """ I cacciatori """
@@ -349,8 +481,12 @@ class Game:
         Reset the game variables to their default values
         """
         self._turn = 0
-        self._board.set_cells(self._default_cells.copy())
+        self._board.reset()
         self._winner = None
-        visited_states = dict()
+        self.visited_states = [dict(), dict()]
+        self.unexplored_states = [list(), list()]
         for end_state in self.end_states:
-            self.visited_states[end_state] = self.HUNTER_WIN
+            self.visited_states[BEAR][end_state] = 0
+
+        self.unexplored_states[HUNTER] = self._board.get_all_states()
+        self.unexplored_states[BEAR] = [x for x in self._board.get_all_states() if x not in self.end_states]
