@@ -51,21 +51,21 @@ class Board:
         self._last_action = []
 
     def __str__(self):
-        string_rep = self._default_char * 21
-        for i in self.hunters:
-            string_rep = string_rep[:i] + "0" + string_rep[i+1:]
-        for i in self.bears:
-            string_rep = string_rep[:i] + "1" + string_rep[i+1:]
+        string_rep = [self._default_char] * 21
+        for i in self._hunters:
+            string_rep[i] = "0"
+        for i in self._bear:
+            string_rep[i] = "1"
 
-        return string_rep
+        return "".join(string_rep)
 
-    def __getitem__(self, index: int):
-        for index in self._hunters:
-            return str(HUNTER)
-        for index in self._bears:
-            return str(BEAR)
+    # def __getitem__(self, index: int):
+    #     for index in self._hunters:
+    #         return str(HUNTER)
+    #     for index in self._bear:
+    #         return str(BEAR)
 
-        return '_'
+    #     return '_'
 
     def get_hash(self) -> str:
         """ 
@@ -131,8 +131,8 @@ class Board:
         return states
 
     def reset(self) -> None:
-        self.hunters = [0, 1, 2]
-        self.bears = [20]
+        self._hunters = [0, 1, 2]
+        self._bear = [20]
         self._last_action = []
 
     def apply_action(self, action: tuple[int, int]):
@@ -140,6 +140,7 @@ class Board:
             Represents a move from action[0] to action[1]
             from a player.
         """
+        print(action, self._hunters, self._bear)
         for i, val in enumerate(self._hunters):
             if val == action[0]:
                 self._hunters[i] = action[1]
@@ -149,6 +150,7 @@ class Board:
             if val == action[0]:
                 self._bear[i] = action[1]
                 break
+        print(action, self._hunters, self._bear)
 
         self._last_action += [action]
     
@@ -167,13 +169,13 @@ class Board:
         action = self._last_action[-1]
 
         for i, val in enumerate(self._hunters):
-            if val == action[0]:
-                self._hunters[i] = action[1]
+            if val == action[1]:
+                self._hunters[i] = action[0]
                 break
         
         for i, val in enumerate(self._bear):
-            if val == action[0]:
-                self._bear[i] = action[1]
+            if val == action[1]:
+                self._bear[i] = action[0]
                 break
         self._last_action = self._last_action[:-1]
 
@@ -220,7 +222,7 @@ class Board:
 
         for i in it_vector:
             for target in self.adjacent[i]:
-                if target not in self._bears and target not in self._hunters:
+                if target not in self._bear and target not in self._hunters:
                     actions.append((i, target))
 
         return actions
@@ -340,19 +342,19 @@ class Game:
             board_state = self._board.get_hash()
             actions = self._board.get_actions(player_num)
             action_idx = curr_player.choose_action(
-                self._board.reachable_states(actions),
+                Board.reachable_states(board_state, actions),
                 actions
             )
             action = actions[action_idx]
-            
             self._board.apply_action(action)
+
             if self.has_ended():
                 if self._turn >= self._max_turns:
                     self._winner = BEAR
                 else:
                     self._winner = HUNTER
 
-            if False and isinstance(curr_player, AIPlayer):
+            if isinstance(curr_player, AIPlayer):
                 curr_player.feed_reward(
                     state=board_state,
                     next_state=self._board.get_hash(),
@@ -402,7 +404,31 @@ class Game:
         print(f"Training done, saved policies, {n_times} games played \n \
             Number of hunter wins: {hunter_wins}")
 
-    def calculate_mini_max(self) -> None:
+    def calculate_deterministic_state_value(self) -> None:
+        """
+        This uses a recursive algoritmh to calculate how many moves are
+        need for the Hunter to win, for the bear to lose, in a sure way.
+        We define recursively two data structures:
+        hunter(states) -> the number of moves needed for the hunter to win
+        bear(states) -> the number of moves needed for the bear to lose
+
+        bear(states for states in endstates): is initialized as 0 as
+        the bear has already lost if it's in an end state.
+
+        The recursively we define:
+        for each state:
+            if turn is hunter turn:
+                if we can reach a state where the we know the bear will lose:
+                    add this state to the hunter(states) data structure with current distance
+            if turn is bear turn:
+                if all reachable states are states where the bear will lose:
+                    add this state to the bear(states) data structure with current distance
+
+        This is a very easy to understand algorithm, but i haven't still analyzed it.
+        We would need a theorem that states that all unexplored states will be marked.
+        Assuming this, the algorithm works in O(n^2), with n the number of states.
+        As the sweept through all non visited states, max nonvisited number of state times.
+        """
         self.reset()
 
         curr_dist = 1
@@ -412,23 +438,48 @@ class Game:
                 has_changed = self.find_hunter_states(curr_dist)
             else:
                 has_changed = self.find_bear_states(curr_dist)
-            print(curr_dist, len(self.visited_states[BEAR]), len(self.visited_states[HUNTER]), has_changed)
+            print(f"""{curr_dist=}, bear: {len(self.visited_states[HUNTER])}, hunter: {len(self.visited_states[BEAR])}, has changed: {has_changed}""")
             curr_dist += 1
 
         print("Saving the states values")
-        data = dict()
-        data['states_value'] = self.visited_states.copy()
-        with open(f'states_value.pickle', 'wb') as handle:
-            pickle.dump(data, handle)
+        data_bear = dict()
+        data_bear['states_value'] = self.visited_states[BEAR]
+
+        data_hunter = dict()
+        data_hunter['states_value'] = self.visited_states[HUNTER]
+        with open(f'bear_policy.pickle', 'wb') as handle:
+            pickle.dump(data_bear, handle)
+
+        with open(f'hunter_policy.pickle', 'wb') as handle:
+            pickle.dump(data_hunter, handle)
         print("Done, states saved")
 
     def find_bear_states(self, curr_dist: int) -> bool:
         state_to_add = []
-        for state in self.unexplored_states[BEAR]:
+        for state in self.unexplored_states[HUNTER]:
             reachable_states = Board.reachable_states(state, 
                 Board.get_actions_state(state, is_hunter=False))
             
-            is_new_state = all(curr_state in self.visited_states[HUNTER] for curr_state in reachable_states)
+            is_new_state = all(curr_state in self.visited_states[BEAR] for curr_state in reachable_states)
+            if is_new_state:
+                state_to_add.append(state)
+
+        if len(state_to_add) == 0:
+            return False
+
+        for state in state_to_add:
+            self.visited_states[HUNTER][state] = curr_dist
+            self.unexplored_states[HUNTER].remove(state)
+
+        return True
+
+    def find_hunter_states(self, curr_dist: int) -> bool:
+        state_to_add = []
+        for state in self.unexplored_states[BEAR]:
+            reachable_states = Board.reachable_states(state, 
+                Board.get_actions_state(state, is_hunter=True))
+
+            is_new_state = any(curr_state in self.visited_states[HUNTER] for curr_state in reachable_states)
             if is_new_state:
                 state_to_add.append(state)
 
@@ -441,41 +492,6 @@ class Game:
 
         return True
 
-    def find_hunter_states(self, curr_dist: int) -> bool:
-        state_to_add = []
-        for state in self.unexplored_states[HUNTER]:
-            reachable_states = Board.reachable_states(state, 
-                Board.get_actions_state(state, is_hunter=True))
-
-            # self._board.display(Board.str_from_hash(state))
-            # print(Board.get_actions_state(state, True))
-
-            # for state in reachable_states:
-            #     self._board.display(Board.str_from_hash(state))
-
-            # break
-            is_new_state = any(curr_state in self.visited_states[BEAR] for curr_state in reachable_states)
-            if is_new_state:
-                state_to_add.append(state)
-
-        if len(state_to_add) == 0:
-            return False
-
-        for state in state_to_add:
-            self.visited_states[HUNTER][state] = curr_dist
-            self.unexplored_states[HUNTER].remove(state)
-
-
-        return True
-
-    def hunter_play(self) -> int:
-        """ I cacciatori """
-        return self.BEAR_WIN
-
-    def bear_play(self) -> int:
-        """ Il orso """
-        return self.HUNTER_WIN
-
     def reset(self) -> None:
         """
         Reset the game variables to their default values
@@ -486,7 +502,7 @@ class Game:
         self.visited_states = [dict(), dict()]
         self.unexplored_states = [list(), list()]
         for end_state in self.end_states:
-            self.visited_states[BEAR][end_state] = 0
+            self.visited_states[HUNTER][end_state] = 0
 
-        self.unexplored_states[HUNTER] = self._board.get_all_states()
-        self.unexplored_states[BEAR] = [x for x in self._board.get_all_states() if x not in self.end_states]
+        self.unexplored_states[BEAR] = self._board.get_all_states()
+        self.unexplored_states[HUNTER] = [x for x in self._board.get_all_states() if x not in self.end_states]

@@ -51,7 +51,10 @@ def _parse_arguments():
         help='Seed for the random generator (None for random seed)',
         default=None)
 
-    parser.add_argument('--boh',
+    parser.add_argument('--deterministic',
+        help='calculate the state value using deterministic algorithm, for further \
+            information read the comments on the main function for this argument \
+            the first function called, if this flag is set',
         action='store_true',
         default=False)
 
@@ -66,7 +69,7 @@ def initialize_players() -> tuple[AbstractPlayer, AbstractPlayer]:
     else:
         hunter_ai = AIPlayer(name='hunter',
             training=not args.disable_training,
-            maximize=True
+            maximize=False
         )
         if args.hunter_ai_file != DEFAULT_NO_PLAYER:
             hunter_ai.load_policy(args.hunter_ai_file)
@@ -76,7 +79,7 @@ def initialize_players() -> tuple[AbstractPlayer, AbstractPlayer]:
     else:
         bear_ai = AIPlayer(name='bear', 
             training=not args.disable_training,
-            maximize=False
+            maximize=True
         )
         if (args.bear_ai_file != DEFAULT_NO_PLAYER):
             bear_ai.load_policy(args.bear_ai_file)
@@ -96,8 +99,8 @@ if __name__ == '__main__':
     board = Board()
     game = Game(board, hunter_player, bear_player, display_board)
 
-    if args.boh:
-        game.calculate_mini_max()
+    if args.deterministic:
+        game.calculate_deterministic_state_value()
 
     elif not args.disable_training:
         game.train(args.n_games)

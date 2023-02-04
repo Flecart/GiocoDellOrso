@@ -110,14 +110,14 @@ class AIPlayer(AbstractPlayer):
 
     def choose_action(self, reachable_states: list[int], actions) -> int:
         """ Get the action to be taken """
-        values = [(self.states_value[state], state) for state in reachable_states
+        values = [(self.states_value[state], i) for i, state in enumerate(reachable_states)
             if self.states_value.get((state)) is not None]
 
         get_best_value = (lambda x: max(x, key=lambda x: x[0])[0]) \
             if self.maximize \
             else (lambda x: min(x, key=lambda x: x[0])[0])
 
-        valid_actions = [i for i, value in enumerate(values)
+        valid_actions = [idx for value, idx in values
             if value == get_best_value(values)]
 
         if len(valid_actions) == 0:
@@ -127,7 +127,8 @@ class AIPlayer(AbstractPlayer):
 
         print(best_choice)
         print(reachable_states, values)
-        print(f'AIPlayer {self._name} chose {reachable_states[best_choice]} with value \
+        print(actions)
+        print(f'AIPlayer {self._name} chose {actions[best_choice]}, state is {reachable_states[best_choice]} with value \
             {self.states_value[reachable_states[best_choice]] if self.states_value.get((reachable_states[best_choice])) is not None else 0}')
         return best_choice  
 
