@@ -81,7 +81,7 @@ class AIPlayer(AbstractPlayer):
 
         return data
 
-    def save_policy(self, times_trained, max_turns, opponent):
+    def save_policy(self, times_trained, max_turns, opponent, directory="policies"):
         """
         Save the policy
         """
@@ -92,7 +92,7 @@ class AIPlayer(AbstractPlayer):
         data['max_turns'] = self.old_max_turns + [max_turns]
         data['states_value'] = self.states_value.copy()
 
-        with open(f'{str(self._name)}_{curr_time}.policy', 'wb') as file_write:
+        with open(f'policies/{str(self._name)}_{curr_time}.policy', 'wb') as file_write:
             pickle.dump(data, file_write)
 
     def load_policy(self, file):
