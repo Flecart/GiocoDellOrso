@@ -17,32 +17,27 @@ def _parse_arguments():
         bear game, it offers features as loading of previous trained policies\
         human play (in terminal visuals), number of training games (games to play)\
     ")
-    parser.add_argument('--hunter_ai_file',
+    parser.add_argument('--hunter-ai-file',
         type=str, 
         help='Path to the hunter AI policy file',
         default=DEFAULT_NO_PLAYER)
 
-    parser.add_argument('--bear_ai_file',
+    parser.add_argument('--bear-ai-file',
         type=str, 
         help='Path to the bear AI policy file',
         default=DEFAULT_NO_PLAYER)
 
-    parser.add_argument('--bear_human',
+    parser.add_argument('--bear-human',
         action='store_true',
         help='Set this flag if you want bear to be human player',
         default=False)
 
-    parser.add_argument('--hunter_human',
+    parser.add_argument('--hunter-human',
         action='store_true',
         help='Set this flag if you want hunter to be human player',
         default=False)
 
-    parser.add_argument('--n_games',
-        type=int, 
-        help='Number of games to play (useful for training phase)',
-        default=1)
-
-    parser.add_argument('--deterministic',
+    parser.add_argument('--train',
         help='calculate the state value using deterministic algorithm, for further \
             information read the comments on the main function for this argument \
             the first function called, if this flag is set',
@@ -85,7 +80,7 @@ if __name__ == '__main__':
     board = Board()
     game = Game(board, hunter_player, bear_player, display_board)
 
-    if args.deterministic:
+    if args.train:
         game.calculate_deterministic_state_value()
     else:
         for _ in range(args.n_games):
