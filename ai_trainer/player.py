@@ -57,7 +57,6 @@ class AIPlayer(AbstractPlayer):
             kwargs['gamma'] if kwargs.get('gamma') is not None else 0.9
         )
 
-        self.training = kwargs['training'] if kwargs.get('training') is not None else True
         self.states_value: dict[str, int] = {}  # state -> value
         self.maximize = maximize
 
@@ -132,38 +131,13 @@ class AIPlayer(AbstractPlayer):
             {self.states_value[reachable_states[best_choice]] if self.states_value.get((reachable_states[best_choice])) is not None else 0}')
         return best_choice  
 
-    def feed_reward(self,
-        state:str,
-        next_state: str,
-        action_taken: tuple[int, int],
-        actions: list[tuple[int, int]],
-        reward: int):
-        if self.states_value.get((state, action_taken)) is None:
-            self.states_value[state, action_taken] = 0
-        
-        get_best_value = (lambda x: np.max(x)) \
-            if self.maximize else (lambda x: np.min(x))
-        try:
-            old_max_value = get_best_value([
-                self.states_value[next_state, action]
-                for action in actions
-                if self.states_value.get((next_state, action)) is not None
-            ])
-        except ValueError:  # probably empty array
-            old_max_value = 0
-
-        self.states_value[state, action_taken] += self.alpha * (
-            reward + self.gamma * old_max_value -
-            self.states_value[state, action_taken]
-        )
-
 class HumanPlayer(AbstractPlayer):
     """
     Human player class
     Represents a player controlled by a human
     """
 
-    def choose_action(self, state: str, actions: tuple[int, int]):
+    def choose_action(self, _: str, actions: tuple[int, int]):
         """ Get the action to be taken """
         while True:
             print('Available actions: ', actions)

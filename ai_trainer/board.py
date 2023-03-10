@@ -59,14 +59,6 @@ class Board:
 
         return "".join(string_rep)
 
-    # def __getitem__(self, index: int):
-    #     for index in self._hunters:
-    #         return str(HUNTER)
-    #     for index in self._bear:
-    #         return str(BEAR)
-
-    #     return '_'
-
     def get_hash(self) -> str:
         """ 
         get hash of the board, this is not a proper hash, as
@@ -303,30 +295,6 @@ class Game:
         elif self._winner == BEAR:
             print("The bear won!")
 
-    def compute_reward(self, player_num: int) -> int:
-        """
-        Compute the reward for the given player
-
-        Important observations:
-        if the game has not ended we need to put the hunters in pain,
-        so that they are more motivated to end the game, as quickly as possible
-
-        For the bear, we want him to take as much time as possible to win, so we only
-        penalize the defeat.
-
-        hunter is Max-player, bear is Min-player
-        """
-        if player_num == HUNTER:
-            if self._winner == HUNTER:
-                return 0
-            return -1
-        elif player_num == BEAR:
-            if self._winner == HUNTER:
-                return 1
-            return 0
-
-        raise ValueError("Invalid player symbol")
-
     def play(self) -> int:
         """
         Main game loop, continues to play until the game has ended
@@ -354,18 +322,10 @@ class Game:
                 else:
                     self._winner = HUNTER
 
-            if isinstance(curr_player, AIPlayer):
-                curr_player.feed_reward(
-                    state=board_state,
-                    next_state=self._board.get_hash(),
-                    action_taken=action,
-                    actions=self._board.get_actions(1 - player_num),
-                    reward=self.compute_reward(player_num)
-                )
-
             if self._winner is not None:
                 break
             
+            # update for next player
             player_num += 1
             if player_num == 2:
                 self._turn += 1

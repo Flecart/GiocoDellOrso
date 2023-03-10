@@ -6,6 +6,7 @@ import random
 from board import Board, Game
 from player import AIPlayer, HumanPlayer, AbstractPlayer
 import sys, resource
+
 sys.setrecursionlimit(30000)
 resource.setrlimit(resource.RLIMIT_STACK, (2**29,-1))
 DEFAULT_NO_PLAYER = 'random'
@@ -41,16 +42,6 @@ def _parse_arguments():
         help='Number of games to play (useful for training phase)',
         default=1)
 
-    parser.add_argument('--disable_training',
-        action='store_true',
-        help='Set this flag if you don´t  want the bot to make exploratory moves, won´t save the policy',
-        default=False)
-
-    parser.add_argument('--seed',
-        type=int,
-        help='Seed for the random generator (None for random seed)',
-        default=None)
-
     parser.add_argument('--deterministic',
         help='calculate the state value using deterministic algorithm, for further \
             information read the comments on the main function for this argument \
@@ -68,7 +59,6 @@ def initialize_players() -> tuple[AbstractPlayer, AbstractPlayer]:
         hunter_ai = HumanPlayer(name='hunter')
     else:
         hunter_ai = AIPlayer(name='hunter',
-            training=not args.disable_training,
             maximize=False
         )
         if args.hunter_ai_file != DEFAULT_NO_PLAYER:
@@ -78,7 +68,6 @@ def initialize_players() -> tuple[AbstractPlayer, AbstractPlayer]:
         bear_ai = HumanPlayer(name='bear')
     else:
         bear_ai = AIPlayer(name='bear', 
-            training=not args.disable_training,
             maximize=True
         )
         if (args.bear_ai_file != DEFAULT_NO_PLAYER):
@@ -89,9 +78,6 @@ def initialize_players() -> tuple[AbstractPlayer, AbstractPlayer]:
 if __name__ == '__main__':
     args = _parse_arguments()
 
-    if args.seed is not None:
-        random.seed(args.seed)
-
     hunter_player, bear_player = initialize_players()
     # If i want to play as human, i will need to see the board!
     display_board = args.hunter_human or args.bear_human 
@@ -101,9 +87,6 @@ if __name__ == '__main__':
 
     if args.deterministic:
         game.calculate_deterministic_state_value()
-
-    elif not args.disable_training:
-        game.train(args.n_games)
     else:
         for _ in range(args.n_games):
             game.play()
