@@ -1,2 +1,0 @@
-# in order to create a release for windows, run this file, or this commands
-pyinstaller --windowed --onefile orso_ai.py --add-data "bear_v2.policy;." --add-data "sounds/*;sounds/" --add-data "images/*;images/" --add-data "fonts/*;fonts/" --icon="images/little-bear.ico"
