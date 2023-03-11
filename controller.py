@@ -74,16 +74,12 @@ if __name__ == '__main__':
     args = _parse_arguments()
 
     hunter_player, bear_player = initialize_players()
-    # If i want to play as human, i will need to see the board!
-    display_board = args.hunter_human or args.bear_human 
-
     board = Board()
-    game = Game(board, hunter_player, bear_player, display_board)
 
     if args.train:
+        game = Game(board, hunter_player, bear_player, display_board=False)
         game.calculate_deterministic_state_value()
     else:
-        for _ in range(args.n_games):
-            game.play()
-            game.print_winner()
-            game.reset()
+        game = Game(board, hunter_player, bear_player, display_board=True)
+        game.play()
+        game.print_winner()

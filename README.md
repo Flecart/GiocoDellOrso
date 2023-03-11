@@ -14,7 +14,7 @@ https://vallecervobiella.wordpress.com/il-gioco-dellorso/
 ## Regole del Gioco
 
 * Il primo giocatore è il Cacciatore, possiede tre pedine nel tabellone con l'obiettivo di catturare (bloccare) l'orso in una delle dodici posizioni finali
-* Il secondo giocatore è l'Orso, possiede un pedone unico; deve muoversi nel tabellone per 40 mosse senza essere bloccato in una delle posizioni finali, per poter fuggire e vincere
+* Il secondo giocatore è l'Orso, possiede un pedone unico; deve muoversi nel tabellone per 20/30/40 mosse senza essere bloccato in una delle posizioni finali, per poter fuggire e vincere
 
 
 
@@ -23,49 +23,9 @@ https://vallecervobiella.wordpress.com/il-gioco-dellorso/
 * La tavola è un cerchio con un cerchio interno e quattro semicerchi, uno per ogni quarto, tutti divisi da due linee perpendicolari.
 * Ogni intersezione è una posizione per i giocatori
 
-![Board](img/BearBoard.jpg)
-
-
-
-### Posizione iniziale
-
-![Start](img/Start.png)
-
-
-
-### Posizione finale
-
-![1](img/Final01.png) ![2](img/Final02.png) ![3](img/Final03.png)
-
-![4](img/Final04.png) ![5](img/Final05.png) ![6](img/Final06.png)
-
-![7](img/Final07.png) ![8](img/Final08.png) ![9](img/Final09.png)
-
-![10](img/Final10.png) ![11](img/Final11.png) ![12](img/Final12.png)
-
-
-
 ## Aspetti progettuali ##
 
-* Language: Python
+- `python3 controller.py [--hunter-human] [--bear-human]` se volete giocare con l'interfaccia di testo.
+- `python3 controller.py --train` se volete avere in output le policies.
 
-### Design Steps
-
-* Procedural _- DONE_
-* OO _- DONE_
-
-### UI Steps ###
-
-* Text _- DONE_
-* Graphical with Tkinter _- DONE_
-* Graphical with PyGame _- DONE_
-
-Grazie a Michele Pugno per le serate PyGame.
-Per gli assets grafici grazie a Stefano Gunella e Enrico Battuello.
-Musica "Games Worldbeat" di Bernardo R. from http://freesound.org
-
-### Game Steps ###
-
-* Human vs Human _- DONE_
-* Human vs Bot (AI)
-
+Se volete giocare con l'ai basta `--hunter-ai-file nome_file.policy` per caricare la policy dell'hunter.

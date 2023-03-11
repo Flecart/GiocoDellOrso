@@ -3,7 +3,6 @@ This module is used as board abstraction for the game.
 """
 
 from player import AbstractPlayer, AIPlayer
-from tqdm import tqdm
 import pickle
 
 # The values encode the character string for these
@@ -337,32 +336,6 @@ class Game:
                 curr_player = self._hunter_player
 
         return self._winner
-
-    def train(self, n_times: int = 100) -> None:
-        """
-        Train the players and save the created policies
-        into files
-        """
-
-        hunter_wins = 0
-        for _ in tqdm(range(n_times)):
-            self.play()
-            if self._winner == HUNTER:
-                hunter_wins += 1
-            self.reset()
-
-        self._hunter_player.save_policy(
-            n_times,
-            self._max_turns,
-            self._bear_player.get_state_info(n_times)
-        )
-        self._bear_player.save_policy(
-            n_times,
-            self._max_turns,
-            self._hunter_player.get_state_info(n_times)
-        )
-        print(f"Training done, saved policies, {n_times} games played \n \
-            Number of hunter wins: {hunter_wins}")
 
     def calculate_deterministic_state_value(self) -> None:
         """
