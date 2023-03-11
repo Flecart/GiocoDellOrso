@@ -2,10 +2,11 @@
 This module handles all the logic to start the game
 """
 import argparse
-import random
-from board import Board, Game
+import sys
+import resource
+from board import Board
+from game import Game
 from player import AIPlayer, HumanPlayer, AbstractPlayer
-import sys, resource
 
 sys.setrecursionlimit(30000)
 resource.setrlimit(resource.RLIMIT_STACK, (2**29,-1))

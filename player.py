@@ -3,8 +3,8 @@ Implements logic for the player.
 """
 import pickle
 import time
-import numpy as np
 import random
+import numpy as np
 
 INFINITY = 1000000
 
