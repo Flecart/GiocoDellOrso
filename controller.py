@@ -3,13 +3,11 @@ This module handles all the logic to start the game
 """
 import argparse
 import sys
-import resource
 from board import Board
 from game import Game
 from player import AIPlayer, HumanPlayer, AbstractPlayer
 
 sys.setrecursionlimit(30000)
-resource.setrlimit(resource.RLIMIT_STACK, (2**29,-1))
 DEFAULT_NO_PLAYER = 'random'
 
 def _parse_arguments():
