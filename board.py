@@ -53,12 +53,7 @@ class Board:
 
         return "".join(string_rep)
 
-    def get_hash(self) -> str:
-        """ 
-        get hash of the board, this is not a proper hash, as
-        it's easy to convert it back to the board, just an encoding, but
-        i want to keep this name.
-        """
+    def get_encoding(self) -> str:
         val = 0
         for i in self._hunters:
             val += (HUNTER + 1) * 3 ** i
@@ -66,26 +61,6 @@ class Board:
             val += (BEAR + 1) * 3 ** i
 
         return val
-
-    @staticmethod
-    def str_from_hash(hash: int) -> str:
-        """ get string from hash """
-        def get_char(val: int):
-            if val == 0:
-                return '_'
-            elif val == HUNTER + 1:
-                return '0'
-            elif val == BEAR + 1:
-                return '1'
-            else:
-                raise ValueError("Invalid value")
-
-        str = ""
-        for _ in range(21):
-            str += get_char(hash % 3)
-            hash = hash // 3
-
-        return str
 
     def get_all_states(self) -> list[int]:
         """ get all possible states """
@@ -101,7 +76,7 @@ class Board:
                         if bear not in [hunter_0, hunter_1, hunter_2]:
                             self._hunters = [hunter_0, hunter_1, hunter_2]
                             self._bear = [bear]
-                            states.add(self.get_hash())
+                            states.add(self.get_encoding())
         self._hunters = original_hunter
         self._bear = original_bear
 

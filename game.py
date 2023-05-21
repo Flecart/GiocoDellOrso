@@ -39,7 +39,7 @@ class Game:
         """
         Check if the game has ended
         """
-        if self._board.get_hash() in self.end_states:
+        if self._board.get_encoding() in self.end_states:
             return True
         elif self._turn >= self._max_turns:
             return True
@@ -71,7 +71,7 @@ class Game:
             if self._display_board:
                 self._board.display()
 
-            board_state = self._board.get_hash()
+            board_state = self._board.get_encoding()
             actions = self._board.get_actions(player_num)
             action_idx = curr_player.choose_action(
                 Board.reachable_states(board_state, actions),
@@ -105,7 +105,7 @@ class Game:
     def calculate_deterministic_state_value(self) -> None:
         """
         This uses a recursive algoritmh to calculate how many moves are
-        need for the Hunter to win, for the bear to lose, in a sure way.
+        need for the Hunter to win, for the bear to lose.
         We define recursively two data structures:
         hunter(states) -> the number of moves needed for the hunter to win
         bear(states) -> the number of moves needed for the bear to lose
@@ -132,11 +132,11 @@ class Game:
         curr_dist = 1
         has_changed = True
         while has_changed:
-            if curr_dist % 2 == 1:  # hunter
-                has_changed = self.find_hunter_states(curr_dist)
-            else:
+            if curr_dist % 2 == 1:  # bear
                 has_changed = self.find_bear_states(curr_dist)
-            print(f"""{curr_dist=}, bear: {len(self.visited_states[HUNTER])}, hunter: {len(self.visited_states[BEAR])}, has changed: {has_changed}""")
+            else:
+                has_changed = self.find_hunter_states(curr_dist)
+            print(f"""{curr_dist=}, hunter: {len(self.visited_states[HUNTER])}, bear: {len(self.visited_states[BEAR])}, has changed: {has_changed}""")
             curr_dist += 1
 
         print("Saving the states values")
@@ -152,7 +152,7 @@ class Game:
             pickle.dump(data_hunter, handle)
         print("Done, states saved")
 
-    def find_bear_states(self, curr_dist: int) -> bool:
+    def find_hunter_states(self, curr_dist: int) -> bool:
         state_to_add = []
         for state in self.unexplored_states[HUNTER]:
             reachable_states = Board.reachable_states(state,
@@ -171,7 +171,7 @@ class Game:
 
         return True
 
-    def find_hunter_states(self, curr_dist: int) -> bool:
+    def find_bear_states(self, curr_dist: int) -> bool:
         state_to_add = []
         for state in self.unexplored_states[BEAR]:
             reachable_states = Board.reachable_states(state, 
